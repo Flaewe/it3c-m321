@@ -1102,6 +1102,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.RabbitMQContainer;
@@ -1151,9 +1152,12 @@ class MessageControllerIntegrationTest {
                 .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.sentAt").exists());
 
-        Object received = rabbitTemplate.receiveAndConvert(QueueNames.PERSIST_QUEUE, 5000);
-        assertNotNull(received);
-        ChatMessage message = (ChatMessage) received;
+        ParameterizedTypeReference<ChatMessage> targetType = new ParameterizedTypeReference<>() {
+        };
+        ChatMessage message = rabbitTemplate.receiveAndConvert(
+                QueueNames.PERSIST_QUEUE, 5000, targetType);
+
+        assertNotNull(message);
         assertEquals("Hallo zusammen", message.content());
         assertEquals("Anna Muster", message.senderName());
     }
