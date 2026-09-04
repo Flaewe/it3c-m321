@@ -18,7 +18,7 @@ Diese Punkte gelten für **jede** Aufgabe in diesem Plan:
 - **Code auf Englisch** — Klassen, Methoden, Variablen, Dateinamen und **Log-Meldungen**. **Alles andere auf Deutsch** — Kommentare, Javadoc, Commit-Messages, Antworttexte an den Benutzer.
 - **Keine verschachtelten Aufrufe.** Ein Ergebnis pro Zeile, in eine benannte Variable. Gilt auch in Tests.
 - **Keine Interfaces mit einer einzigen Implementierung**, keine Abstraktion auf Vorrat.
-- **Kein Lombok.** Java-`record` für Datenklassen, Logger ausgeschrieben mit `LoggerFactory.getLogger(...)`.
+- **Lombok** für Logger (`@Slf4j`) und Konstruktor-Injektion (`@RequiredArgsConstructor`). Für Datenklassen trotzdem Java-`record` — das kann Java selbst, dafür braucht es Lombok nicht.
 - **Kein `ports:`-Eintrag** in `docker-compose.yml`. Der einzige offene Port des Gesamtsystems gehört später dem `web-gateway`.
 - **Keine Geheimnisse im Repository.** Zugangsdaten kommen aus `.env`, im Repo steht nur `.env.example`.
 - **Jeder Commit endet mit dieser Zeile:**
@@ -211,6 +211,14 @@ Erwartet: Fehlschlag — es gibt weder ein `pom.xml` noch eine `@SpringBootAppli
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
+        <!-- Lombok erzeugt Logger und Konstruktoren beim Uebersetzen.
+             "optional" heisst: nur wir brauchen es, niemand der uns benutzt. -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -240,6 +248,16 @@ Erwartet: Fehlschlag — es gibt weder ein `pom.xml` noch eine `@SpringBootAppli
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <!-- Lombok wird nur zum Uebersetzen gebraucht und
+                             gehoert nicht ins ausgelieferte Jar. -->
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
             </plugin>
         </plugins>
     </build>
@@ -832,8 +850,8 @@ package ch.benedict.m321.chatservice.service;
 
 import ch.benedict.m321.chatservice.config.QueueNames;
 import ch.benedict.m321.chatservice.dto.ChatMessage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
@@ -845,18 +863,14 @@ import org.springframework.stereotype.Service;
  * in die Datenbank geschrieben hat.
  */
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class MessagePublisher {
-
-    private static final Logger log = LoggerFactory.getLogger(MessagePublisher.class);
 
     /** Leerer Routing-Key: ein Fanout-Exchange ignoriert ihn ohnehin. */
     private static final String FANOUT_ROUTING_KEY = "";
 
     private final RabbitTemplate rabbitTemplate;
-
-    public MessagePublisher(RabbitTemplate rabbitTemplate) {
-        this.rabbitTemplate = rabbitTemplate;
-    }
 
     /**
      * Legt die Nachricht in den Schreibweg und in den Zustellweg.
@@ -1007,8 +1021,8 @@ package ch.benedict.m321.chatservice.service;
 import ch.benedict.m321.chatservice.dto.AcceptedResponse;
 import ch.benedict.m321.chatservice.dto.ChatMessage;
 import ch.benedict.m321.chatservice.dto.SendMessageRequest;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -1022,15 +1036,11 @@ import java.util.UUID;
  * Reihenfolge und dieselbe ID sehen.
  */
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class MessageService {
 
-    private static final Logger log = LoggerFactory.getLogger(MessageService.class);
-
     private final MessagePublisher messagePublisher;
-
-    public MessageService(MessagePublisher messagePublisher) {
-        this.messagePublisher = messagePublisher;
-    }
 
     /**
      * Nimmt eine Nachricht an und gibt zurück, unter welcher ID sie im
@@ -1195,6 +1205,7 @@ import ch.benedict.m321.chatservice.dto.AcceptedResponse;
 import ch.benedict.m321.chatservice.dto.SendMessageRequest;
 import ch.benedict.m321.chatservice.service.MessageService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -1208,13 +1219,10 @@ import org.springframework.web.bind.annotation.RestController;
  * das hat das Gateway bereits getan.
  */
 @RestController
+@RequiredArgsConstructor
 public class MessageController {
 
     private final MessageService messageService;
-
-    public MessageController(MessageService messageService) {
-        this.messageService = messageService;
-    }
 
     /**
      * Nimmt eine Nachricht entgegen.
@@ -1302,8 +1310,7 @@ Erwartet: Übersetzungsfehler — `MessageExceptionHandler` gibt es noch nicht.
 ```java
 package ch.benedict.m321.chatservice.controller;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.AmqpException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -1318,9 +1325,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * erneut zu versuchen.
  */
 @RestControllerAdvice
+@Slf4j
 public class MessageExceptionHandler {
-
-    private static final Logger log = LoggerFactory.getLogger(MessageExceptionHandler.class);
 
     @ExceptionHandler(AmqpException.class)
     public ResponseEntity<String> handleBrokerNotAvailable(AmqpException exception) {

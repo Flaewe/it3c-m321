@@ -2,8 +2,8 @@ package ch.benedict.m321.chatservice.service;
 
 import ch.benedict.m321.chatservice.config.QueueNames;
 import ch.benedict.m321.chatservice.dto.ChatMessage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
@@ -15,18 +15,14 @@ import org.springframework.stereotype.Service;
  * in die Datenbank geschrieben hat.
  */
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class MessagePublisher {
-
-    private static final Logger log = LoggerFactory.getLogger(MessagePublisher.class);
 
     /** Leerer Routing-Key: ein Fanout-Exchange ignoriert ihn ohnehin. */
     private static final String FANOUT_ROUTING_KEY = "";
 
     private final RabbitTemplate rabbitTemplate;
-
-    public MessagePublisher(RabbitTemplate rabbitTemplate) {
-        this.rabbitTemplate = rabbitTemplate;
-    }
 
     /**
      * Legt die Nachricht in den Schreibweg und in den Zustellweg.

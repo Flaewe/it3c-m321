@@ -1,7 +1,6 @@
 package ch.benedict.m321.chatservice.controller;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.AmqpException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,9 +15,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * erneut zu versuchen.
  */
 @RestControllerAdvice
+@Slf4j
 public class MessageExceptionHandler {
-
-    private static final Logger log = LoggerFactory.getLogger(MessageExceptionHandler.class);
 
     @ExceptionHandler(AmqpException.class)
     public ResponseEntity<String> handleBrokerNotAvailable(AmqpException exception) {

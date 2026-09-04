@@ -27,6 +27,9 @@ ausgeführt. Verständlichkeit schlägt Eleganz — immer.
   Beamer, ist sie zu lang.
 - **Keine Magie.** Keine Reflection, keine cleveren Tricks, keine Framework-Features,
   die man nicht in zwei Sätzen erklären kann.
+- **Lombok für Boilerplate.** `@Slf4j` für den Logger, `@RequiredArgsConstructor` für
+  die Konstruktor-Injektion. Beides spart eine Zeile, die in jeder Klasse gleich
+  aussieht. Für reine Datenklassen nehmen wir Java-`record` — das kann Java selbst.
 - **Keine Vorrats-Abstraktionen.** Kein Interface mit einer einzigen Implementierung,
   keine Factory für ein einziges Produkt. Wenn wir es später brauchen, bauen wir es
   später.
