@@ -700,6 +700,7 @@ package ch.benedict.m321.chatservice.service;
 
 import ch.benedict.m321.chatservice.config.QueueNames;
 import ch.benedict.m321.chatservice.dto.ChatMessage;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.AnonymousQueue;
 import org.springframework.amqp.core.Binding;
@@ -711,6 +712,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.core.ParameterizedTypeReference;
 import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -743,15 +745,24 @@ class MessagePublisherIntegrationTest {
     @Autowired
     private RabbitAdmin rabbitAdmin;
 
+    /**
+     * Eine Queue ist gemeinsamer Zustand: sie überlebt die einzelne
+     * Testmethode. Ohne dieses Leeren liest der zweite Test die
+     * Nachricht des ersten und schlägt scheinbar grundlos fehl.
+     */
+    @BeforeEach
+    void emptyPersistQueue() {
+        rabbitAdmin.purgeQueue(QueueNames.PERSIST_QUEUE);
+    }
+
     @Test
     void publishesToPersistQueue() {
         ChatMessage message = createMessage("Hallo Schreibweg");
 
         messagePublisher.publish(message);
 
-        Object received = rabbitTemplate.receiveAndConvert(QueueNames.PERSIST_QUEUE, 5000);
-        assertNotNull(received);
-        ChatMessage persisted = (ChatMessage) received;
+        ChatMessage persisted = receiveFrom(QueueNames.PERSIST_QUEUE);
+        assertNotNull(persisted);
         assertEquals(message.id(), persisted.id());
         assertEquals("Hallo Schreibweg", persisted.content());
     }
@@ -771,11 +782,24 @@ class MessagePublisherIntegrationTest {
         messagePublisher.publish(message);
 
         String queueName = gatewayQueue.getName();
-        Object received = rabbitTemplate.receiveAndConvert(queueName, 5000);
-        assertNotNull(received);
-        ChatMessage delivered = (ChatMessage) received;
+        ChatMessage delivered = receiveFrom(queueName);
+        assertNotNull(delivered);
         assertEquals(message.id(), delivered.id());
         assertEquals("Hallo Zustellweg", delivered.content());
+    }
+
+    /**
+     * Holt eine Nachricht aus einer Queue.
+     *
+     * Der Zieltyp wird hier ausdrücklich mitgegeben. Grund: in der Queue
+     * liegt JSON, nicht ein Java-Objekt. Wer liest, muss wissen, was er
+     * erwartet — genau so wird es später auch der batch-writer machen,
+     * der ja seine eigene Kopie der Klasse hat.
+     */
+    private ChatMessage receiveFrom(String queueName) {
+        ParameterizedTypeReference<ChatMessage> targetType = new ParameterizedTypeReference<>() {
+        };
+        return rabbitTemplate.receiveAndConvert(queueName, 5000, targetType);
     }
 
     /** Baut eine vollständige Nachricht, damit die Tests kurz bleiben. */
@@ -787,6 +811,14 @@ class MessagePublisherIntegrationTest {
     }
 }
 ```
+
+> **Zwei Fallen, die beim Bauen aufgeschlagen sind** (04.09.2026, hier bereits eingearbeitet):
+> 1. `Jackson2JsonMessageConverter` deserialisiert nur Klassen aus `java.util` und `java.lang`.
+>    Der Empfänger muss den Zieltyp selbst mitgeben — was ohnehin richtig ist, weil in der Queue
+>    JSON liegt und keine Java-Klasse.
+> 2. Eine Queue überlebt die einzelne Testmethode. Beide Tests schreiben nach `chat.persist`,
+>    also muss sie vor jedem Test geleert werden — sonst liest der zweite Test die Nachricht
+>    des ersten.
 
 - [ ] **Schritt 2: Test laufen lassen und Fehlschlag bestätigen**
 
