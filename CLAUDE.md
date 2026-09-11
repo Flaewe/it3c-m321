@@ -1,4 +1,4 @@
-# M321 Chat-App — Projektregeln (IT3c, Benedict Schule)
+# M321 Chat-App — Projektregeln (IT3c)
 
 Unterrichtsprojekt. Der Code wird von Schülerinnen und Schülern gelesen, nicht nur
 ausgeführt. Verständlichkeit schlägt Eleganz — immer.

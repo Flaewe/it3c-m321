@@ -1,6 +1,6 @@
 # Chat-App — Planung
 
-**Modul M321 · Klasse IT3c · Benedict Schule · 28.08.2026**
+**Modul M321 · Klasse IT3c · 28.08.2026**
 
 Verteilte Chat-Anwendung als Microservice-Architektur. Vollständig in `docker-compose`
 abgebildet, Kommunikation über ein internes Docker-Netzwerk, nur die Web-App ist über
