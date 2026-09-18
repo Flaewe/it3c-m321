@@ -649,9 +649,18 @@ steht in `.gitignore`.
 Schritt 3 ist der wichtigste Meilenstein. Alles davor ist Vorbereitung, alles danach ist
 Ausbau.
 
-**Stand heute:** Schritt 1 ist teilweise erledigt — das Maven-Elternprojekt steht, und der
-`chat-service` aus Schritt 3 ist bereits gebaut und getestet. In `docker-compose.yml`
-fehlen noch Postgres und Keycloak. Der nächste sinnvolle Schritt ist deshalb Schritt 2.
+**Stand heute:** Schritt 1 steht bis auf Postgres (die kommt erst in Schritt 4, weil erst
+der `batch-writer` sie braucht). Der `chat-service` aus Schritt 3 ist gebaut und getestet.
+
+**Schritt 2 ist geschrieben, aber noch nie gelaufen.** Vorhanden sind der Keycloak-Realm
+als Import, das `web-gateway` mit Token-Prüfung und Weiterleitung von `/auth/**`, und eine
+React-App, die den angemeldeten Benutzer anzeigt. Die Tests dazu sind grün — sie prüfen
+aber nur die Teile, die ohne Keycloak auskommen: die Weiterleitung gegen eine Attrappe,
+das Auslesen eines erfundenen Tokens, die PKCE-Rechnung gegen das Beispiel aus RFC 7636.
+
+Was noch aussteht, ist der erste echte Anmeldevorgang: `docker compose up`, im Browser
+anmelden, und sehen ob der Name erscheint. Genau dort entscheiden sich die offenen
+Punkte 11 und 12, und dort ist auch mit dem ersten Fehlschlag zu rechnen.
 
 ---
 

@@ -683,11 +683,19 @@ erDiagram
       <div class="phase"><span class="idx">7</span><div><h4>Desktop <span class="later">Kür</span></h4>
         <p>JavaFX-Client an derselben API. Beweist die Clientneutralität des Backends.</p></div></div>
 
-      <div class="callout"><p class="lb">Stand heute</p>
-        <p>Schritt 1 ist <strong>teilweise</strong> erledigt: das Maven-Elternprojekt steht, und der
-          <code>chat-service</code> aus Schritt 3 ist bereits gebaut und mit Testcontainers getestet.
-          In <code>docker-compose.yml</code> fehlen noch Postgres und Keycloak. Der nächste sinnvolle
-          Schritt ist deshalb <strong>Schritt 2 — Login</strong>.</p></div>
+      <div class="callout warn"><p class="lb">Stand heute</p>
+        <p>Schritt 1 steht bis auf Postgres — die kommt erst in Schritt 4, weil erst der
+          <code>batch-writer</code> sie braucht. Der <code>chat-service</code> aus Schritt 3 ist
+          gebaut und getestet.</p>
+        <p><strong>Schritt 2 ist geschrieben, aber noch nie gelaufen.</strong> Vorhanden sind der
+          Keycloak-Realm als Import, das <code>web-gateway</code> mit Token-Prüfung und
+          Weiterleitung von <code>/auth/**</code>, und eine React-App, die den angemeldeten
+          Benutzer anzeigt. Die Tests sind grün — sie prüfen aber nur, was ohne Keycloak auskommt:
+          die Weiterleitung gegen eine Attrappe, das Auslesen eines erfundenen Tokens, die
+          PKCE-Rechnung gegen das Beispiel aus RFC 7636.</p>
+        <p>Es fehlt der erste echte Anmeldevorgang: <code>docker compose up</code>, im Browser
+          anmelden, und sehen ob der Name erscheint. Dort entscheiden sich die offenen Punkte 11
+          und 12 — und dort ist mit dem ersten Fehlschlag zu rechnen.</p></div>
     </section>
 
     <section id="offen">
