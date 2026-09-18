@@ -12,7 +12,9 @@ docker-compose gestartet werden.
    git clone https://github.com/<dein-benutzername>/it3c-m321.git
    cd it3c-m321
    ```
-3. Voraussetzungen installieren: **Java 21**, **Maven**, **Docker Desktop**, **Git**.
+3. Voraussetzungen installieren: **Java 21**, **Docker Desktop**, **Git**.
+   Maven brauchst du **nicht** zu installieren — im Projekt liegt der Maven-Wrapper
+   (`mvnw`), der sich beim ersten Aufruf die richtige Version selbst holt.
 4. Lokale Umgebungsdatei anlegen und die Werte anpassen:
    ```bash
    cp .env.example .env
@@ -23,10 +25,31 @@ Alle Aufgaben werden in **deinem Fork** gelöst. Das Original-Repository bleibt 
 
 ## Bauen, testen, starten
 
-```bash
-mvn test                         # alle Tests, RabbitMQ kommt per Testcontainers
-docker compose up --build        # das ganze Netz chat-net hochfahren
+Alle Befehle laufen im **Wurzelverzeichnis** des Projekts — dort, wo `pom.xml` liegt.
+
+Windows (PowerShell):
+
+```powershell
+.\mvnw test                       # alle Tests, RabbitMQ kommt per Testcontainers
+docker compose up --build         # das ganze Netz chat-net hochfahren
 ```
+
+macOS und Linux:
+
+```bash
+./mvnw test
+docker compose up --build
+```
+
+> **`mvn` statt `.\mvnw` funktioniert nicht?** Dann hast du kein eigenes Maven im PATH —
+> das ist in Ordnung, genau dafür gibt es den Wrapper. Benutze immer `.\mvnw`
+> beziehungsweise `./mvnw`.
+>
+> **`javac` auf eine einzelne Datei funktioniert nie.** Dabei fehlen dem Compiler alle
+> Abhängigkeiten *und* die übrigen Klassen des Projekts — du bekommst dann rund zwanzig
+> Fehler, darunter auch `Package ch.benedict.m321.chatservice.dto ist nicht vorhanden`.
+> Genau dieses eigene Paket in der Liste ist das Erkennungszeichen: gebaut wird immer
+> das Projekt, nie eine Datei.
 
 Danach ist **nur** <http://localhost:8080> erreichbar — der Port des `web-gateway`. Alle
 anderen Container veröffentlichen keinen Port. Nachprüfen:
@@ -39,8 +62,12 @@ docker compose ps                                                 # nur web-gate
 
 **Ohne Docker** laufen die Tests, die keinen Container brauchen:
 
+```powershell
+.\mvnw test "-Dtest=!*IntegrationTest"      # PowerShell: Anführungszeichen nötig
+```
+
 ```bash
-mvn test -Dtest='!*IntegrationTest'
+./mvnw test -Dtest='!*IntegrationTest'      # macOS und Linux
 ```
 
 Die Tests des `web-gateway` gehören dazu: sie starten ihre eigene Keycloak-Attrappe aus der
