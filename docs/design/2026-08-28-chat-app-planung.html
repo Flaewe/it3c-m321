@@ -146,22 +146,31 @@
       <a href="#ziel">Ziel</a><a href="#stack">Stack</a><a href="#entscheidungen">Entscheidungen</a>
       <a href="#architektur">Architektur</a><a href="#fluss">Fluss</a><a href="#last">Mengengerüst</a>
       <a href="#modell">Modell</a><a href="#reihenfolge">Reihenfolge</a><a href="#offen">Offen</a>
-      <a href="#verlauf">Verlauf</a>
+      <a href="#abweichungen">Abweichungen</a><a href="#verlauf">Verlauf</a>
     </nav>
   </div></div>
 
   <div class="wrap">
 
     <header class="hero">
-      <p class="eyebrow">Planung · Modul M321 · 28.08.2026</p>
+      <p class="eyebrow">Planung · Modul M321 · 28.08.2026 · überarbeitet 18.09.2026</p>
       <h1>Chat-App als verteiltes System</h1>
       <p class="sub">Microservice-Architektur in <code>docker-compose</code>, Login über Keycloak,
         RabbitMQ als Puffer für 100'000 Nachrichten pro Minute — und genau ein offener Port.</p>
       <div class="metaline">
         <span class="chip"><span class="dot"></span>Klasse IT3c</span>
+        <span class="chip"><span class="dot"></span>Flavio Campigotto</span>
         <span class="chip info"><span class="dot"></span>Entwurf abgenommen</span>
-        <span class="chip warn"><span class="dot"></span>9 offene Punkte</span>
+        <span class="chip warn"><span class="dot"></span>17 offene Punkte</span>
       </div>
+
+      <div class="callout"><p class="lb">Woher dieses Dokument kommt</p>
+        <p>Es gab zwei Planungen: die Referenzplanung aus dem Original-Repository und eine eigene,
+          unabhängig entstandene. Dieses Dokument übernimmt den <strong>Architekturschnitt der
+          Referenzplanung</strong> und arbeitet aus der eigenen Planung ein, was <em>additiv</em>
+          ist — also eine Lücke schliesst, ohne den Schnitt zu verändern. Der Abschnitt
+          <a href="#abweichungen">Abweichungen</a> listet jede Übernahme und jede Ablehnung
+          mit Begründung auf.</p></div>
     </header>
 
     <section id="ziel">
@@ -207,6 +216,7 @@
           <tr><td>Framework</td><td><span class="mono">Spring Boot 3.5</span></td><td>Starter für AMQP, WebSocket, OAuth2 Resource Server, JDBC</td></tr>
           <tr><td>Broker</td><td><span class="mono">RabbitMQ 3.13</span></td><td>Queues und Exchanges sind am Whiteboard erklärbar, startet in Sekunden</td></tr>
           <tr><td>Datenbank</td><td><span class="mono">PostgreSQL 16</span></td><td>Beherrscht Bulk-Inserts und <code>ON CONFLICT</code> sauber</td></tr>
+          <tr><td>Schema-Migration</td><td><span class="mono">Flyway</span></td><td>Versionierte SQL-Dateien statt <code>ddl-auto</code>. Passt zu <code>JdbcTemplate</code>, bei dem es gar keine Entity-Klassen gibt — und nimmt beim Hochfahren mehrerer <code>batch-writer</code>-Instanzen eine Sperre</td></tr>
           <tr><td>IDP</td><td><span class="mono">Keycloak 26</span></td><td>Vorgabe; Realm wird als JSON importiert</td></tr>
           <tr><td>DB-Zugriff</td><td><span class="mono">JdbcTemplate</span></td><td>Bewusst kein JPA im Batch-Writer — <code>batchUpdate</code> ist genau das, was wir zeigen wollen</td></tr>
           <tr><td>Web-Client</td><td><span class="mono">React 19 + TS</span></td><td>Macht die Client/Server-Grenze sichtbar, statt sie zu verwischen</td></tr>
@@ -366,8 +376,25 @@ flowchart TB
       <div class="callout warn"><p class="lb">Der Widerspruch, den die Ein-Port-Vorgabe erzeugt</p>
         <p>OpenID Connect leitet den <strong>Browser</strong> zu Keycloak um. Der Browser läuft auf dem
           Host und erreicht das interne Netz nicht. Lösung: das Gateway reicht <code>/auth/**</code>
-          intern durch, Keycloak läuft mit <code>KC_HTTP_RELATIVE_PATH=/auth</code> und
-          <code>KC_PROXY_HEADERS=xforwarded</code>. Ein Port, echter Authorization Code Flow mit PKCE.</p></div>
+          intern durch. Ein Port, echter Authorization Code Flow mit PKCE.</p></div>
+
+      <h3>Drei Variablen, und alle drei sind nötig</h3>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Variable</th><th>Wert</th><th>Was ohne sie passiert</th></tr></thead>
+        <tbody>
+          <tr><td><span class="mono">KC_HTTP_RELATIVE_PATH</span></td><td><code>/auth</code></td><td>Keycloak antwortet unter <code>/</code>, das Gateway leitet aber <code>/auth/**</code> weiter — alle internen Links zeigen ins Leere</td></tr>
+          <tr><td><span class="mono">KC_HOSTNAME</span></td><td><code>http://localhost:8080/auth</code></td><td>Keycloak baut seine URLs aus dem <em>internen</em> Namen. Der Token-Aussteller (<code>iss</code>) lautet dann <code>http://keycloak:8080/…</code>, und der Browser bekommt Redirects auf eine Adresse, die er nicht erreicht</td></tr>
+          <tr><td><span class="mono">KC_PROXY_HEADERS</span></td><td><code>xforwarded</code></td><td>Keycloak ignoriert <code>X-Forwarded-Proto</code> und <code>X-Forwarded-Host</code> und hält die Anfrage für direkt</td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="callout warn"><p class="lb">Vor dem ersten Feature prüfen — offener Punkt 11</p>
+        <p>Sobald Keycloak steht, diesen Aufruf machen:</p>
+        <pre class="code"><span class="c"># steht hier localhost:8080 oder keycloak:8080?</span>
+curl -s http://localhost:8080/auth/realms/chat/.well-known/openid-configuration <span class="k">|</span> grep issuer</pre>
+        <p>Steht dort <code>keycloak:8080</code>, stimmt <code>KC_HOSTNAME</code> nicht — und der Login
+          scheitert später mit einer Meldung, die auf alles Mögliche hindeutet, nur nicht auf die
+          Ursache.</p></div>
 
       <div class="diagram">
         <p class="figcap">Abb. 2 — Login-Ablauf</p>
@@ -407,7 +434,30 @@ sequenceDiagram
       <div class="callout"><p class="lb">Warum ein Fanout für die Zustellung</p>
         <p>Eine WebSocket-Verbindung hängt an genau einer Gateway-Instanz. Also bindet jede Instanz eine
           <strong>eigene, exklusive</strong> Queue an <code>chat.delivery</code>, sieht jede Nachricht
-          und entscheidet selbst, ob einer ihrer verbundenen Clients sie braucht.</p></div>
+          und entscheidet selbst, ob einer ihrer verbundenen Clients sie braucht.</p>
+        <p>Ein <strong>Topic Exchange</strong> mit <code>chat.room.&lt;roomId&gt;</code> wäre sparsamer,
+          braucht aber die Raum-Mitgliedschaften aus der Datenbank (erst Schritt 4) und tauscht
+          zustandsloses Fanout gegen Bindings, die bei jedem Verbinden und Trennen gepflegt werden
+          müssen. Aufgehoben als offener Punkt 14, nicht verworfen.</p></div>
+
+      <h3>Der eine offene Port — und wie man ihn prüft</h3>
+      <pre class="code"><span class="c"># Kommentarzeilen vorher wegwerfen, sonst zählt der Hinweistext mit</span>
+grep -v <span class="a">'^[[:space:]]*#'</span> docker-compose.yml <span class="k">|</span> grep -c <span class="a">'ports:'</span>
+
+docker compose ps   <span class="c"># nur web-gateway zeigt eine Host-Portbindung</span></pre>
+      <p class="measure">Heute ergibt der erste Befehl <code>0</code> — die Datei bildet Ausbaustufe 1 ab,
+        in der es das <code>web-gateway</code> noch gar nicht gibt. Im Zielbild ergibt er <code>1</code>.
+        Alles darüber ist ein Fehler.</p>
+
+      <div class="callout warn"><p class="lb">Zwei Fallen in der Compose-Datei</p>
+        <p><strong>1. <code>expose:</code> schützt nichts.</strong> In einem User-defined Network
+          erreichen sich alle Container auf allen Ports — <code>expose</code> ist reine Dokumentation.
+          Was von aussen erreichbar ist, entscheidet allein <code>ports:</code>.</p>
+        <p><strong>2. <code>depends_on</code> allein reicht nicht.</strong> Es wartet nur darauf, dass
+          der Container <em>gestartet</em> ist, nicht dass der Dienst darin <em>antwortet</em>. Postgres
+          und RabbitMQ brauchen einen <code>healthcheck</code> und die abhängigen Dienste
+          <code>condition: service_healthy</code> — sonst startet der <code>batch-writer</code>
+          schneller als die Datenbank und stirbt beim ersten Verbindungsversuch.</p></div>
     </section>
 
     <section id="fluss">
@@ -542,6 +592,8 @@ docker compose up -d --scale chat-service=3 --scale batch-writer=2</pre>
     <section id="modell">
       <p class="kicker"><span class="n">06</span>&nbsp;Datenmodell</p>
       <h2>Drei Tabellen, keine Benutzerverwaltung</h2>
+      <p class="lead measure">Ein Modell für beide Chat-Arten: ein 1:1-Chat ist schlicht ein Raum mit
+        <code>type = DIRECT</code> und genau zwei Mitgliedern.</p>
 
       <div class="diagram">
         <p class="figcap">Abb. 5 — Datenmodell</p>
@@ -553,6 +605,7 @@ erDiagram
     ROOM {
         uuid id PK
         varchar name
+        varchar type "DIRECT oder GROUP"
         timestamptz created_at
     }
     ROOM_MEMBER {
@@ -580,7 +633,36 @@ erDiagram
         <li><code>message.id</code> ist Primärschlüssel und kommt vom <code>chat-service</code> — das ist
           die Grundlage der Duplikat-Abwehr.</li>
         <li>Ein einziger Index: <code>message(room_id, sent_at DESC)</code>. Es gibt genau eine Leseabfrage.</li>
+        <li><code>room.type</code> unterscheidet <code>DIRECT</code> und <code>GROUP</code>. Es braucht
+          keine zweite Tabelle und keinen zweiten Zustellweg — der Unterschied liegt allein in der
+          Anzeige. Gruppenräume kosten damit praktisch keinen Mehraufwand.</li>
       </ul>
+
+      <div class="callout"><p class="lb">Bewusst noch nicht im Schema</p>
+        <p>Kein <code>last_read_at</code> für Ungelesen-Zähler, kein <code>edited_at</code> für
+          nachträgliches Bearbeiten, keine <code>app_user</code>-Tabelle. Alle drei sind plausibel,
+          aber keine wird in den Schritten 1 bis 7 benutzt — und <code>CLAUDE.md</code> verbietet
+          Vorrats-Abstraktionen. Weil das Schema über Flyway versioniert ist, kostet das Nachrüsten
+          später <strong>genau eine Migrationsdatei</strong>. Das ist billiger als eine Spalte, die ein
+          halbes Jahr leer bleibt und bei jeder Erklärung mit erklärt werden muss.</p></div>
+
+      <h3>Das Schema entsteht nicht aus Java-Klassen</h3>
+      <pre class="code">batch-writer/src/main/resources/db/migration/
+<span class="c">├──</span> V1__room_und_message.sql
+<span class="c">├──</span> V2__room_member.sql
+<span class="c">└──</span> V3__index_message_room_sent_at.sql</pre>
+      <ul class="tick">
+        <li><strong><code>ddl-auto</code> passt hier gar nicht.</strong> Es gehört zu JPA, und der
+          <code>batch-writer</code> benutzt bewusst <code>JdbcTemplate</code> — es gibt keine
+          Entity-Klassen, aus denen Hibernate ein Schema ableiten könnte.</li>
+        <li><strong>Der Index ist Teil des Entwurfs.</strong> In einer Migrationsdatei ist er sichtbar
+          und überprüfbar; in einer Annotation wäre er eine Nebenbemerkung.</li>
+        <li><strong>Mehrere Instanzen starten gleichzeitig.</strong> Bei
+          <code>--scale batch-writer=2</code> nimmt Flyway eine Datenbank-Sperre, sodass genau einer
+          migriert und der andere wartet. Zwei Hibernate-Instanzen tun das nicht.</li>
+      </ul>
+      <p class="measure">Flyway läuft nur im <code>batch-writer</code> — dem Dienst, dem die Datenbank
+        gehört. Der <code>chat-service</code> liest die Historie, migriert aber nicht.</p>
     </section>
 
     <section id="reihenfolge">
@@ -600,33 +682,99 @@ erDiagram
         <p><code>--scale</code>, Competing Consumers, Messreihe. Der eigentliche Lernstoff von M321.</p></div></div>
       <div class="phase"><span class="idx">7</span><div><h4>Desktop <span class="later">Kür</span></h4>
         <p>JavaFX-Client an derselben API. Beweist die Clientneutralität des Backends.</p></div></div>
+
+      <div class="callout"><p class="lb">Stand heute</p>
+        <p>Schritt 1 ist <strong>teilweise</strong> erledigt: das Maven-Elternprojekt steht, und der
+          <code>chat-service</code> aus Schritt 3 ist bereits gebaut und mit Testcontainers getestet.
+          In <code>docker-compose.yml</code> fehlen noch Postgres und Keycloak. Der nächste sinnvolle
+          Schritt ist deshalb <strong>Schritt 2 — Login</strong>.</p></div>
     </section>
 
     <section id="offen">
       <p class="kicker"><span class="n">08</span>&nbsp;Offene Punkte</p>
       <h2>Was noch ungelöst ist</h2>
-      <p class="lead measure">Ehrlich benannt statt weggeschwiegen. Punkt 3 und 7 sind die dringenden.</p>
+      <p class="lead measure">Ehrlich benannt statt weggeschwiegen. Die Spalte <em>Art</em> trennt drei
+        Sorten: <strong>zu klären</strong> muss vor dem Weiterbauen entschieden werden,
+        <strong>Risiko</strong> kostet beim Bauen Zeit, wenn man es nicht kennt,
+        <strong>zurückgestellt</strong> ist bewusst aufgeschoben.</p>
+      <p class="measure">Die Nummern 1 bis 9 stammen aus der Referenzplanung und bleiben unverändert,
+        weil <code>docs/plan-chat-service.md</code> auf sie verweist. Die Nummern ab 10 sind beim
+        Zusammenführen dazugekommen.</p>
       <div class="tablewrap"><table>
-        <thead><tr><th>#</th><th>Punkt</th><th>Stand</th><th>Möglicher Weg</th></tr></thead>
+        <thead><tr><th>#</th><th>Punkt</th><th>Art</th><th>Stand</th><th>Möglicher Weg</th></tr></thead>
         <tbody>
-          <tr><td>1</td><td><strong>Gateway skaliert nicht</strong></td><td><span class="pill p-warn">bewusst</span> WebSocket klebt an einer Instanz</td><td>nginx als Lastverteiler mit Sticky Sessions — wäre ein achter Container, zurückgestellt</td></tr>
-          <tr><td>2</td><td><strong>DB wächst um 1,2 GB/h</strong></td><td><span class="pill p-bad">ungelöst</span></td><td>Partitionierung nach Tag, oder Aufräum-Job für Nachrichten älter als X</td></tr>
-          <tr><td>3</td><td><strong>Reihenfolge der Nachrichten</strong></td><td><span class="pill p-bad">ungelöst</span> bei N chat-service-Instanzen nicht garantiert</td><td>über <code>room_id</code>-Hash konsistent routen, oder im Client nach <code>sent_at</code> sortieren — Zweiteres ist einfacher und für einen Chat gut genug</td></tr>
-          <tr><td>4</td><td><strong>Login im JavaFX-Client</strong></td><td><span class="pill p-info">Konzept</span> nicht erprobt</td><td>System-Browser öffnen, Rückleitung auf <code>127.0.0.1:&lt;Port&gt;/callback</code> nach RFC 8252</td></tr>
-          <tr><td>5</td><td><strong>Keycloak-Admin-Oberfläche</strong></td><td><span class="pill p-good">so gewollt</span> nicht erreichbar</td><td>Realm als JSON-Import; für Änderungen <code>docker compose exec</code> oder eine dokumentierte Override-Datei</td></tr>
-          <tr><td>6</td><td><strong>Rechte und Rollen</strong></td><td><span class="pill p-draft">offen</span></td><td>Vorschlag: Keycloak-Rollen <code>user</code> und <code>admin</code>; nur <code>admin</code> sieht die Queue-Tiefe</td></tr>
-          <tr><td>7</td><td><strong>Wirklich 100k/min auf einem Laptop?</strong></td><td><span class="pill p-bad">unbewiesen</span></td><td>Muss gemessen werden. Realistischer Engpass ist RabbitMQ mit persistenten Nachrichten, nicht die Datenbank</td></tr>
-          <tr><td>8</td><td><strong>Lastverteilung auf chat-service</strong></td><td><span class="pill p-bad">neu</span> durch den REST-Sendeweg</td><td>Docker-DNS verteilt, ein HTTP-Verbindungspool umgeht das. Keep-Alive begrenzen oder pro Anfrage neu auflösen — und messen, sonst glaubt man an eine Verteilung, die nicht stattfindet</td></tr>
-          <tr><td>9</td><td><strong>Kein Puffer auf dem Sendeweg</strong></td><td><span class="pill p-warn">bewusst</span> neu</td><td>Ist der <code>chat-service</code> unten, schlägt das Senden sofort fehl. Der Client muss das sichtbar machen („Nachricht nicht gesendet") statt sie stillschweigend zu verlieren</td></tr>
+          <tr><td>1</td><td><strong>Gateway skaliert nicht</strong></td><td><span class="pill p-draft">zurückgestellt</span></td><td><span class="pill p-warn">bewusst</span> WebSocket klebt an einer Instanz</td><td>nginx als Lastverteiler mit Sticky Sessions — wäre ein achter Container, zurückgestellt</td></tr>
+          <tr><td>2</td><td><strong>DB wächst um 1,2 GB/h</strong></td><td><span class="pill p-draft">zurückgestellt</span></td><td><span class="pill p-bad">ungelöst</span></td><td>Partitionierung nach Tag, oder Aufräum-Job für Nachrichten älter als X</td></tr>
+          <tr><td>3</td><td><strong>Reihenfolge der Nachrichten</strong></td><td><span class="pill p-bad">zu klären</span></td><td><span class="pill p-bad">ungelöst</span> bei N chat-service-Instanzen nicht garantiert</td><td>über <code>room_id</code>-Hash konsistent routen, oder im Client nach <code>sent_at</code> sortieren — Zweiteres ist einfacher und für einen Chat gut genug</td></tr>
+          <tr><td>4</td><td><strong>Login im JavaFX-Client</strong></td><td><span class="pill p-draft">zurückgestellt</span></td><td><span class="pill p-info">Konzept</span> nicht erprobt</td><td>System-Browser öffnen, Rückleitung auf <code>127.0.0.1:&lt;Port&gt;/callback</code> nach RFC 8252</td></tr>
+          <tr><td>5</td><td><strong>Keycloak-Admin-Oberfläche</strong></td><td><span class="pill p-draft">zurückgestellt</span></td><td><span class="pill p-good">so gewollt</span> nicht erreichbar</td><td>Realm als JSON-Import; für Änderungen <code>docker compose exec</code> oder eine dokumentierte Override-Datei</td></tr>
+          <tr><td>6</td><td><strong>Rechte und Rollen</strong></td><td><span class="pill p-bad">zu klären</span></td><td><span class="pill p-draft">offen</span></td><td>Vorschlag: Keycloak-Rollen <code>user</code> und <code>admin</code>; nur <code>admin</code> sieht die Queue-Tiefe. Offen bleibt die Ebene darunter: darf jedes Mitglied eines <code>GROUP</code>-Raums weitere Leute einladen, oder nur der Ersteller? Falls nur der Ersteller, braucht <code>room_member</code> eine Rolle — und damit eine Flyway-Migration</td></tr>
+          <tr><td>7</td><td><strong>Wirklich 100k/min auf einem Laptop?</strong></td><td><span class="pill p-warn">Risiko</span></td><td><span class="pill p-bad">unbewiesen</span></td><td>Muss gemessen werden. Realistischer Engpass ist RabbitMQ mit persistenten Nachrichten, nicht die Datenbank</td></tr>
+          <tr><td>8</td><td><strong>Lastverteilung auf chat-service</strong></td><td><span class="pill p-warn">Risiko</span></td><td><span class="pill p-bad">neu</span> durch den REST-Sendeweg</td><td>Docker-DNS verteilt, ein HTTP-Verbindungspool umgeht das. Keep-Alive begrenzen oder pro Anfrage neu auflösen — und messen, sonst glaubt man an eine Verteilung, die nicht stattfindet</td></tr>
+          <tr><td>9</td><td><strong>Kein Puffer auf dem Sendeweg</strong></td><td><span class="pill p-warn">Risiko</span></td><td><span class="pill p-warn">bewusst</span> neu</td><td>Ist der <code>chat-service</code> unten, schlägt das Senden sofort fehl. Der Client muss das sichtbar machen („Nachricht nicht gesendet") statt sie stillschweigend zu verlieren</td></tr>
+          <tr><td>10</td><td><strong>Token-Erneuerung bei offener WebSocket-Verbindung</strong></td><td><span class="pill p-bad">zu klären</span></td><td><span class="pill p-bad">ungelöst</span></td><td>Ein Access-Token läuft nach ~5 Minuten ab, eine Chat-Verbindung steht länger. Verbindung trennen und neu aufbauen, oder ein frisches Token über den bestehenden Socket nachreichen? Zweiteres ist angenehmer, erfordert aber eine eigene Nachrichtenart im WebSocket-Protokoll</td></tr>
+          <tr><td>11</td><td><strong>Keycloak hinter dem Proxy</strong></td><td><span class="pill p-warn">Risiko</span></td><td><span class="pill p-info">Konfiguration steht</span> nicht erprobt</td><td><code>KC_HOSTNAME</code> falsch gesetzt heisst: <code>iss</code> lautet <code>keycloak:8080</code>, das Gateway erwartet <code>localhost:8080</code>, und der Login scheitert nichtssagend. <strong>Vor dem ersten Feature</strong> die <code>.well-known</code>-URL aufrufen</td></tr>
+          <tr><td>12</td><td><strong>Keycloak-Startzeit und Health-Endpunkt</strong></td><td><span class="pill p-warn">Risiko</span></td><td><span class="pill p-info">umgangen</span> via <code>service_started</code></td><td>Keycloak braucht ~30 s, und sein Health-Endpunkt liegt auf dem getrennten Management-Port 9000 — ein Healthcheck ist nicht in einer Zeile geschrieben. Gegenmittel im Gateway: <code>jwk-set-uri</code> statt <code>issuer-uri</code>. Letzteres holt die OIDC-Konfiguration <em>beim Start</em> und lässt das Gateway scheitern, wenn Keycloak noch nicht da ist</td></tr>
+          <tr><td>13</td><td><strong>Wer schreibt ausser dem batch-writer?</strong></td><td><span class="pill p-bad">zu klären</span></td><td><span class="pill p-draft">Regel steht</span> Ausnahmen nicht geprüft</td><td>Raum anlegen, Mitglied hinzufügen, später Gelesen-Status: seltene Schreiboperationen, für die ein Bulk-Writer überdimensioniert ist. Entweder eine zweite, kleine Queue mit demselben Consumer, oder die Regel bewusst brechen und begründen. Nicht stillschweigend entscheiden</td></tr>
+          <tr><td>14</td><td><strong>Topic-Routing statt Fanout</strong></td><td><span class="pill p-draft">zurückgestellt</span></td><td><span class="pill p-good">Fanout gewählt</span></td><td>Sobald die Datenbank in Schritt 4 steht, weiss das Gateway, in welchen Räumen seine Clients Mitglied sind. Gewinn: weniger Verkehr. Preis: Bindings bei jedem Verbinden und Trennen pflegen</td></tr>
+          <tr><td>15</td><td><strong>Anzeigenamen in Raumlisten</strong></td><td><span class="pill p-bad">zu klären</span></td><td><span class="pill p-bad">Lücke im Modell</span></td><td><code>room_member</code> hat nur die <code>sub</code>-Kennung, für „wer ist in diesem Raum" fehlt der Name. Entweder ebenfalls denormalisieren, oder über die Keycloak-Admin-API nachschlagen. Ersteres passt besser zur Entscheidung, keine Benutzer in unserer DB zu führen</td></tr>
+          <tr><td>16</td><td><strong>TLS</strong></td><td><span class="pill p-draft">zurückgestellt</span></td><td><span class="pill p-info">lokal HTTP</span></td><td>Das Gateway ist die einzige Stelle, an der TLS später ergänzt würde — ohne Änderung an den inneren Diensten. Dass es genau einen Eingang gibt, macht das billig</td></tr>
+          <tr><td>17</td><td><strong>Umfang des Desktop-Clients</strong></td><td><span class="pill p-bad">zu klären</span></td><td><span class="pill p-draft">nicht festgelegt</span></td><td>Voller Funktionsumfang oder erst nur Lesen und Senden ohne Raumverwaltung? Schritt 7 ist Kür — die kleinere Variante beweist die Clientneutralität genauso</td></tr>
         </tbody>
       </table></div>
-      <div class="callout"><p class="lb">Zu Punkt 7</p>
+      <div class="callout"><p class="lb">Die drei dringendsten</p>
+        <p><strong>Punkt 3</strong> (Reihenfolge der Nachrichten), <strong>Punkt 11</strong>
+          (Keycloak-<code>iss</code>, weil er Schritt 2 blockiert) und <strong>Punkt 7</strong> (ob
+          100k/min auf einem Laptop überhaupt erreichbar sind). Punkt 7 lässt sich nicht am Whiteboard
+          klären, sondern erst nach Schritt 5 messen.</p>
         <p>Fällt die Messung schlecht aus, ist das ein <strong>Ergebnis</strong> und kein Misserfolg. Ein
           gemessener Engpass mit Begründung ist mehr wert als eine Zahl, die niemand geprüft hat.</p></div>
     </section>
 
+    <section id="abweichungen">
+      <p class="kicker"><span class="n">09</span>&nbsp;Abweichungen</p>
+      <h2>Was übernommen wurde — und was nicht</h2>
+      <p class="lead measure">Der Massstab war eine einzige Frage: <strong>Schliesst die Ergänzung eine
+        Lücke, ohne den Schnitt anzufassen?</strong> Elf Punkte haben den Test bestanden, neun nicht.
+        Beides steht hier, weil die Ablehnungen genauso Arbeit waren wie die Übernahmen.</p>
+
+      <h3>Übernommen</h3>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Was</th><th>Warum es additiv ist</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Flyway statt <code>ddl-auto</code></strong></td><td>Die Referenzplanung sagt kein Wort zu Schema-Migration — eine echte Lücke. <code>ddl-auto</code> passt hier ohnehin nicht, weil der <code>batch-writer</code> <code>JdbcTemplate</code> statt JPA benutzt und es gar keine Entity-Klassen gibt. Zusätzlich löst Flyway ein Problem, das bei <code>--scale batch-writer=2</code> sonst auftritt</td></tr>
+          <tr><td><strong><code>room.type</code> DIRECT/GROUP</strong></td><td>Die Referenzplanung behandelt 1:1-Chats gar nicht. Eine Spalte genügt, um beide Arten mit <em>einem</em> Modell abzudecken. Kein Vorrat, sondern ab Schritt 3 benutzt</td></tr>
+          <tr><td><strong>Konkretes Compose-Zielbild</strong></td><td>Vorher gab es nur einen Verzeichnisbaum. Ein Baum ist nicht prüfbar, eine Compose-Datei schon — und sie ist das, woran die Abgabe gemessen wird</td></tr>
+          <tr><td><strong>Healthchecks als Pflicht</strong></td><td><code>depends_on</code> wartet auf den Containerstart, nicht auf Betriebsbereitschaft. Kostet nichts, spart einen Nachmittag</td></tr>
+          <tr><td><strong><code>KC_HOSTNAME</code> und die <code>iss</code>-Verifikation</strong></td><td>Die Referenzplanung nennt nur zwei der drei nötigen Variablen. Ohne die dritte stimmt der Token-Aussteller nicht, und der Fehler zeigt sich erst beim Login — mit einer Meldung, die woanders hinzeigt</td></tr>
+          <tr><td><strong>Das CORS-Argument</strong></td><td>Macht die Ein-Port-Vorgabe vom Hindernis zum Vorteil: eine Origin heisst kein CORS. Erklärt nebenbei, warum „Keycloak zusätzlich exponieren" teurer ist, als es aussieht</td></tr>
+          <tr><td><strong>Prüfbares Abnahmekriterium</strong></td><td>Zwei Befehle, die die wichtigste Vorgabe des Auftrags nachweisen. Vorher stand sie nur als Behauptung im Text</td></tr>
+          <tr><td><strong>Desktop-Login ausformuliert</strong></td><td>Vorher offener Punkt 4 mit zwei Sätzen. Der Ablauf ist bekannt (RFC 8252) und in fünf Schritten beschreibbar. Er bleibt offen, weil er <em>nicht erprobt</em> ist — das ist etwas anderes als <em>nicht durchdacht</em></td></tr>
+          <tr><td><strong>Keycloak-Clients benannt</strong></td><td><code>chat-web</code> und <code>chat-desktop</code>, beide Public Client mit PKCE. Beim Schreiben von <code>realm-chat.json</code> in Schritt 2 braucht man genau diese Angaben</td></tr>
+          <tr><td><strong>TLS als Ausbauweg</strong></td><td>Einzeiler, schliesst eine Frage, die in jeder Besprechung kommt</td></tr>
+          <tr><td><strong>Offene Punkte nach Art sortiert</strong></td><td>„Muss ich das entscheiden, bevor ich weiterbaue?" ist eine andere Frage als „was kostet mich das beim Bauen?". Eine Spalte trennt beides, ohne die Nummerierung zu zerstören</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>Geprüft und nicht übernommen</h3>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Was</th><th>Warum nicht</th></tr></thead>
+        <tbody>
+          <tr><td><strong>DB-Schreiben vor dem Publish</strong></td><td>Der Kern, der nicht verhandelbar ist. Die eigene Planung kauft damit Konsistenz — aber sie bedeutet 1'667 Einzeltransaktionen pro Sekunde und macht Queue und Batch-Writer überflüssig. Genau die sollen hier gezeigt werden. Das Gegenargument bleibt gültig und steht als Trade-off im Abschnitt zum Nachrichtenfluss</td></tr>
+          <tr><td><strong>nginx als Gateway</strong></td><td>Der Schnitt wäre sauberer (Routing ≠ Fachlogik), scheitert aber an einer harten Tatsache: das <code>web-gateway</code> ist <strong>AMQP-Consumer</strong> an <code>chat.delivery</code> und liest zusätzlich die Queue-Tiefe aus der Management-API. Das kann nginx nicht. Ein nginx davor <em>und</em> ein Java-Dienst dahinter wären zwei Container statt einem</td></tr>
+          <tr><td><strong>Topic Exchange statt Fanout</strong></td><td>Technisch feiner, braucht aber die Raum-Mitgliedschaften aus der DB (erst Schritt 4) und tauscht zustandsloses Fanout gegen zu pflegende Bindings. Als offener Punkt 14 aufgehoben, nicht verworfen</td></tr>
+          <tr><td><strong><code>app_user</code>-Tabelle</strong></td><td>Widerspricht der Entscheidung, Identitäten allein in Keycloak zu führen. Sie brächte sofort die Folgefrage mit, wie ein neuer Benutzer dort hineinkommt — eine Frage, die mit Denormalisierung gar nicht erst entsteht. Die echte Lücke dahinter ist als Punkt 15 notiert</td></tr>
+          <tr><td><strong><code>common</code>-Modul mit geteilten DTOs</strong></td><td>Koppelt die Dienste über Modulgrenzen: eine DTO-Änderung müsste überall gleichzeitig nachgezogen werden. Das Gegenteil dessen, was M321 zeigen soll</td></tr>
+          <tr><td><strong><code>last_read_at</code> und <code>edited_at</code></strong></td><td>Werden in keinem der sieben Schritte benutzt. <code>CLAUDE.md</code> verbietet Vorrats-Abstraktionen, und weil das Schema über Flyway läuft, kostet das Nachrüsten genau eine Migrationsdatei</td></tr>
+          <tr><td><strong>JWT-Prüfung im <code>chat-service</code></strong></td><td>Sicherheitstechnisch besser, macht aber den <code>load-generator</code> tokenpflichtig — dann misst man in Schritt 5 die Token-Prüfung mit statt die Architektur. „Gateway als einziger Wachposten" ist ausdrücklich als Entscheidung markiert, samt Ausbauweg</td></tr>
+          <tr><td><strong><code>expose:</code> für die inneren Dienste</strong></td><td>Sieht nach Absicherung aus, ist aber keine: in einem User-defined Network erreichen sich alle Container auf allen Ports. Es hätte den falschen Eindruck erweckt, die Vorgabe sei damit erfüllt</td></tr>
+          <tr><td><strong>Die nginx-WebSocket-Stolperfalle</strong></td><td>Entfällt mit nginx. Ohne Reverse-Proxy im Sendeweg gibt es keinen Handshake, der an fehlenden <code>Upgrade</code>-Headern scheitern könnte. Sollte Punkt 1 später einen nginx davorstellen, kommt sie zurück</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
     <section id="verlauf">
-      <p class="kicker"><span class="n">09</span>&nbsp;Verlauf</p>
+      <p class="kicker"><span class="n">10</span>&nbsp;Verlauf</p>
       <h2>Wie diese Planung zustande kam</h2>
       <p class="lead measure">Von der KI geschrieben, inklusive der Stellen, an denen sie falsch lag.</p>
 
@@ -707,10 +855,56 @@ erDiagram
         <p>Zwei davon hatten dieselbe Ursache: ich habe auf <em>möglichst wenig Reibung</em> optimiert,
           während das Modul auf <em>möglichst viel sichtbare Verteilung</em> zielt. Das ist die
           Kalibrierung für den Rest des Projekts.</p></div>
+
+      <h3>Runde 4 — Zusammenführung mit der eigenen Planung</h3>
+      <p class="measure">Nach der Abgabe kam die zweite, unabhängig entstandene Planung dazu, und der
+        Auftrag lautete: mehrheitlich auf dieser Architektur aufbauen, die Stärken der eigenen Planung
+        einarbeiten, wo das einfach geht.</p>
+
+      <div class="callout warn"><p class="lb">Was der Vergleich zutage förderte</p>
+        <p>Die eigene Planung kannte die Anforderung <em>„100k+ Nachrichten pro Minute"</em> nicht — sie
+          kam dort im Gespräch nie vor. Ohne sie ist der gestrichelte Kasten „Batches" auf dem Flipchart
+          genau das, wonach er aussieht: ein optionales Extra, gelesen als Scheduler-Jobs für
+          Benachrichtigungen und Statistiken.</p>
+        <p>An diesem einen Satz hängen Mengengerüst, Bulk-Insert, Competing Consumers, die
+          At-least-once-Diskussion, der <code>load-generator</code>, die Queue-Tiefe in der Oberfläche
+          und drei der offenen Punkte. <strong>Beide KIs haben denselben Fehler gemacht</strong> — der
+          Unterschied ist nur, dass die eine korrigiert wurde und die andere nicht. Die Lehre daraus
+          betrifft weniger Architektur als das Fragenstellen: bei einem gestrichelten Kasten hätte man
+          fragen müssen, was die gestrichelte Linie bedeutet, statt sie zu interpretieren.</p></div>
+
+      <h3>Drei Entscheidungen, die nicht offensichtlich waren</h3>
+      <ol class="steps">
+        <li><strong>nginx als Gateway</strong> schien lange übernehmbar, bis auffiel, dass das
+          <code>web-gateway</code> AMQP-Consumer ist. Das schliesst nginx aus — nicht aus Geschmack,
+          sondern weil nginx kein AMQP spricht. Da wurde aus einer Geschmacksfrage eine technische.</li>
+        <li><strong><code>last_read_at</code></strong> wollte ich zuerst übernehmen; die Spalte kostet ja
+          nichts. Erst <code>CLAUDE.md</code> („Keine Vorrats-Abstraktionen") hat es gekippt — und
+          Flyway, im selben Zug eingebaut, macht das Argument wasserdicht: Nachrüsten kostet eine Datei.
+          Zwei Ergänzungen, die gegeneinander arbeiten, und die Projektregel hat entschieden.</li>
+        <li><strong><code>expose:</code></strong> stand in der eigenen Planung als Beleg für Abschottung.
+          Das stimmt nicht. Ich habe es nicht nur weggelassen, sondern die Fehlannahme benannt, weil sie
+          sonst jemand anders nochmal macht.</li>
+      </ol>
+
+      <div class="callout warn"><p class="lb">Und die Prüfung war zuerst selbst kaputt</p>
+        <p>Ich hatte <code>grep -c "ports:" docker-compose.yml</code> hingeschrieben, mit „muss 1
+          ergeben". Beim Nachrechnen auf der echten Datei kam <code>1</code> heraus — obwohl dort gar
+          kein Port-Mapping steht. Gezählt wurde der <em>Kommentar</em> „KEIN <code>ports:</code>-Eintrag
+          in dieser Datei". Die Prüfung hätte also genau dann bestanden, wenn nichts da ist, und wäre
+          beim Zielbild auf <code>2</code> gesprungen. Ein Abnahmekriterium, das man nicht selbst einmal
+          ausführt, ist eine Behauptung mit Backticks drumherum.</p></div>
+
+      <h3>Was noch nicht geprüft ist</h3>
+      <p class="measure">Nichts aus diesem Dokument wurde gestartet. Das Compose-Zielbild ist
+        geschrieben, nicht gelaufen — insbesondere der Keycloak-Block ist genau die Stelle, an der ich
+        erwarte, dass die Wirklichkeit widerspricht (Punkte 11 und 12). Die Flyway-Migrationsdateien
+        existieren noch nicht, nur ihre Namen. Was tatsächlich läuft, ist der
+        <code>chat-service</code> mit <code>POST /messages</code> und Testcontainers-Tests.</p>
     </section>
 
     <footer class="end">
-      <p class="divlabel">M321 · IT3c · Planungsdokument</p>
+      <p class="divlabel">M321 · IT3c · Flavio Campigotto · Planungsdokument</p>
       <p>Lebendes Dokument — wird fortgeschrieben, wenn offene Punkte entschieden sind.
         Markdown-Fassung: <code>PLANUNG.md</code></p>
     </footer>
