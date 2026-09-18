@@ -1,0 +1,120 @@
+{
+  "realm": "chat",
+  "displayName": "M321 Chat-App",
+  "enabled": true,
+
+  "sslRequired": "none",
+
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "rememberMe": false,
+  "verifyEmail": false,
+  "loginWithEmailAllowed": false,
+
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+
+  "roles": {
+    "realm": [
+      {
+        "name": "user",
+        "description": "Darf chatten. Diese Rolle hat jede angemeldete Person."
+      },
+      {
+        "name": "admin",
+        "description": "Sieht zusaetzlich die Queue-Tiefe in der Oberflaeche."
+      }
+    ]
+  },
+
+  "defaultRole": {
+    "name": "default-roles-chat",
+    "composite": true,
+    "clientRole": false,
+    "containerId": "chat"
+  },
+
+  "clients": [
+    {
+      "clientId": "chat-web",
+      "name": "Chat Web-App",
+      "description": "Die React-Anwendung im Browser. Public Client, weil eine SPA kein Geheimnis speichern kann.",
+      "enabled": true,
+      "protocol": "openid-connect",
+
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+
+      "rootUrl": "http://localhost:8080",
+      "baseUrl": "/",
+      "redirectUris": [
+        "http://localhost:8080/*"
+      ],
+      "webOrigins": [
+        "http://localhost:8080"
+      ],
+
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:8080/*"
+      },
+
+      "fullScopeAllowed": true
+    }
+  ],
+
+  "users": [
+    {
+      "username": "alice",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Alice",
+      "lastName": "Muster",
+      "email": "alice@example.invalid",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "schulung",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["user"]
+    },
+    {
+      "username": "bob",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Bob",
+      "lastName": "Beispiel",
+      "email": "bob@example.invalid",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "schulung",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["user"]
+    },
+    {
+      "username": "admin-user",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "Beispiel",
+      "email": "admin@example.invalid",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "schulung",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["user", "admin"]
+    }
+  ]
+}

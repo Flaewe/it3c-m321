@@ -1,6 +1,6 @@
-# Ausbaustufe 1: nur der Broker und der chat-service.
-# Postgres, Keycloak, web-gateway und batch-writer kommen in den
-# folgenden Schritten dazu.
+# Ausbaustufe 2: Broker, chat-service und Keycloak.
+# Postgres kommt in Schritt 4 dazu (erst der batch-writer braucht sie),
+# das web-gateway im nächsten Commit dieses Schrittes.
 services:
 
   rabbitmq:
@@ -30,8 +30,26 @@ services:
     networks:
       - chat-net
 
-# KEIN ports:-Eintrag in dieser Datei. Der einzige offene Port des
-# Gesamtsystems gehört später dem web-gateway.
+  # Der Login-Dienst. Erreichbar wird er erst, wenn das web-gateway
+  # /auth/** durchreicht -- einen eigenen Port bekommt er nie.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: start-dev --import-realm
+    environment:
+      # Diese drei Variablen entscheiden, ob der Login funktioniert.
+      # Die Begründung steht in PLANUNG.md, Abschnitt 3.2.
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_HOSTNAME: http://localhost:8080/auth
+      KC_PROXY_HEADERS: xforwarded
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    volumes:
+      - ./keycloak/realm-chat.json:/opt/keycloak/data/import/realm-chat.json:ro
+    networks:
+      - chat-net
+
+# KEIN Port-Mapping in dieser Datei. Der einzige offene Port des
+# Gesamtsystems gehört dem web-gateway. Prüfbefehl: PLANUNG.md, Abschnitt 1.1.
 networks:
   chat-net:
     name: chat-net
