@@ -23,9 +23,17 @@ COPY web-gateway/src web-gateway/src
 # Die fertige Web-App landet dort, wo Spring Boot statische Dateien sucht.
 COPY --from=ui /ui/dist/ web-gateway/src/main/resources/static/
 # Tests werden hier übersprungen, damit der Image-Bau nicht vom Netz abhängt.
-# Getestet wird vorher mit "mvn test" — die Tests des Gateways brauchen kein
+# Getestet wird vorher mit "./mvnw test" — die Tests des Gateways brauchen kein
 # Docker, sie starten ihre eigene Keycloak-Attrappe.
-RUN mvn -q -pl web-gateway -am package -DskipTests
+# Gebaut wird mit "-f <modul>/pom.xml", NICHT mit "-pl <modul> -am".
+#
+# Der Unterschied ist hier entscheidend: "-pl" baut über das Eltern-POM als
+# Sammelprojekt, und dann muss JEDES darin eingetragene Modul auch vorhanden
+# sein. Im Build-Kontext liegt aber nur dieses eine. Mit "-f" wird das
+# Eltern-POM nur als Eltern gelesen -- seine Modulliste spielt dann keine
+# Rolle. "-am" braucht es ohnehin nicht: die Dienste hängen nicht
+# voneinander ab, es gibt bewusst kein gemeinsames Modul.
+RUN mvn -q -f web-gateway/pom.xml package -DskipTests
 
 # Stufe 3: laufen
 FROM eclipse-temurin:21-jre

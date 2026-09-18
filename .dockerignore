@@ -1,0 +1,29 @@
+# Was NICHT in den Build-Kontext gehört.
+#
+# Der Kontext ist das ganze Projektverzeichnis, weil die Module das
+# Eltern-POM brauchen. Ohne diese Liste wandert dabei alles mit, was
+# hier lokal herumliegt -- auch Dinge, die niemals in ein Image gehören.
+
+# Geheimnisse. Der wichtigste Eintrag in dieser Datei.
+.env
+
+# Baubares Ergebnis. Wird im Image ohnehin neu erzeugt, und ein
+# mitkopiertes target/ kann einen alten Stand einschleppen.
+**/target/
+web-ui/dist/
+
+# Abhängigkeiten. "npm ci" holt sie im Image frisch und passend zur
+# Lock-Datei -- die Pakete vom Host könnten für ein anderes
+# Betriebssystem gebaut sein.
+**/node_modules/
+
+# Versionsgeschichte und Werkzeuge, die im Image nichts zu suchen haben.
+.git/
+.github/
+.mvn/
+mvnw
+mvnw.cmd
+
+# Dokumentation
+docs/
+*.md
