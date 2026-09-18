@@ -25,11 +25,26 @@ Alle Aufgaben werden in **deinem Fork** gelöst. Das Original-Repository bleibt 
 
 ```bash
 mvn test                         # alle Tests, RabbitMQ kommt per Testcontainers
-docker compose up --build        # RabbitMQ und chat-service im Netz chat-net
+docker compose up --build        # das ganze Netz chat-net hochfahren
 ```
 
-Der `chat-service` veröffentlicht bewusst **keinen Port** auf den Host. Der einzige offene Port
-des Gesamtsystems gehört später dem Gateway.
+Danach ist **nur** <http://localhost:8080> erreichbar — der Port des `web-gateway`. Alle
+anderen Container veröffentlichen keinen Port. Nachprüfen:
+
+```bash
+# Kommentarzeilen wegwerfen, sonst zählt der Hinweistext mit
+grep -v '^[[:space:]]*#' docker-compose.yml | grep -c 'ports:'   # muss 1 ergeben
+docker compose ps                                                 # nur web-gateway zeigt einen Port
+```
+
+**Ohne Docker** laufen die Tests, die keinen Container brauchen:
+
+```bash
+mvn test -Dtest='!*IntegrationTest'
+```
+
+Die Tests des `web-gateway` gehören dazu: sie starten ihre eigene Keycloak-Attrappe aus der
+Java-Standardbibliothek statt eines echten Containers.
 
 ## Was gebaut wird
 
@@ -39,8 +54,8 @@ des Gesamtsystems gehört später dem Gateway.
 | rabbitmq | RabbitMQ 3.13 | Message Queue zwischen den Services | vorhanden |
 | batch-writer | Spring Boot 3, Java 21 | Einziger Schreiber in die Datenbank | folgt |
 | postgres | PostgreSQL | Speichert den Chat-Verlauf | folgt |
-| keycloak | Keycloak | Login (OIDC) | folgt |
-| web-gateway | nginx | Einziger nach aussen offener Port | folgt |
+| keycloak | Keycloak 26 | Login (OIDC), Realm `chat` wird beim Start importiert | vorhanden |
+| web-gateway | Spring Boot 3, Java 21 | Einziger offener Port; prüft Tokens und reicht Keycloak durch | vorhanden |
 | Web-UI | React | Browser-Client | folgt |
 
 Alles unterhalb des Gateways läuft in einem internen Docker-Netzwerk und ist von aussen nicht
@@ -54,6 +69,8 @@ erreichbar.
   — grafische Fassung der Planung, lokal im Browser öffnen.
 - [`docs/plan-chat-service.md`](docs/plan-chat-service.md) — Schritt-für-Schritt-Plan, nach dem
   der `chat-service` gebaut wurde. Jeder Schritt mit Test.
+- [`keycloak/README.md`](keycloak/README.md) — was im Realm steht und warum jede Einstellung
+  darin so gewählt ist.
 - [`CLAUDE.md`](CLAUDE.md) — Codestil-Regeln für dieses Projekt. Gelten auch für dich.
 - [`docs/flipchart-chat-app.png`](docs/flipchart-chat-app.png) — das Flipchart aus der Lektion,
   von dem die Planung ausgeht.

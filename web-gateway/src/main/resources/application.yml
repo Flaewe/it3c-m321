@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: web-gateway
+
+keycloak:
+  # Der Weg im Docker-Netz. Vom Host aus gibt es diese Adresse nicht.
+  internal-url: ${KEYCLOAK_INTERNAL_URL:http://keycloak:8080}
+
+  # Woher der öffentliche Schlüssel kommt. Auch das ist ein Aufruf von
+  # Dienst zu Dienst, also wieder der interne Weg.
+  jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://keycloak:8080/auth/realms/chat/protocol/openid-connect/certs}
+
+  # Was im Token als Aussteller stehen MUSS. Das ist die Adresse, die der
+  # Browser sieht, und sie muss zu KC_HOSTNAME in docker-compose.yml passen.
+  # Weicht sie ab, scheitert jeder Login — PLANUNG.md, offener Punkt 11.
+  issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/auth/realms/chat}
+
+server:
+  port: 8080
+
+logging:
+  level:
+    # Im Unterricht wollen wir jeden Schritt sehen.
+    ch.benedict.m321: DEBUG

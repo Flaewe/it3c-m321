@@ -1,7 +1,29 @@
-# Ausbaustufe 2: Broker, chat-service und Keycloak.
-# Postgres kommt in Schritt 4 dazu (erst der batch-writer braucht sie),
-# das web-gateway im nächsten Commit dieses Schrittes.
+# Ausbaustufe 2: Broker, chat-service, Keycloak und das web-gateway.
+# Postgres kommt in Schritt 4 dazu -- erst der batch-writer braucht sie.
 services:
+
+  # Der einzige Dienst mit einem Port nach aussen. Er prüft die Tokens und
+  # reicht Keycloak unter /auth durch, damit der Browser es erreichen kann.
+  web-gateway:
+    build:
+      context: .
+      dockerfile: web-gateway/Dockerfile
+    ports:
+      - "8080:8080"          # das EINZIGE Port-Mapping im ganzen System
+    environment:
+      KEYCLOAK_INTERNAL_URL: http://keycloak:8080
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/auth/realms/chat/protocol/openid-connect/certs
+      # Muss zu KC_HOSTNAME unten passen, sonst scheitert jeder Login.
+      KEYCLOAK_ISSUER_URI: http://localhost:8080/auth/realms/chat
+    depends_on:
+      # Absichtlich service_started und nicht service_healthy: Keycloak
+      # bringt keinen Healthcheck mit, der in einer Zeile zu schreiben wäre
+      # (offener Punkt 12). Das Gateway verträgt das, weil es den
+      # öffentlichen Schlüssel erst bei der ersten Anfrage holt.
+      keycloak:
+        condition: service_started
+    networks:
+      - chat-net
 
   rabbitmq:
     image: rabbitmq:3.13-management
@@ -48,8 +70,8 @@ services:
     networks:
       - chat-net
 
-# KEIN Port-Mapping in dieser Datei. Der einzige offene Port des
-# Gesamtsystems gehört dem web-gateway. Prüfbefehl: PLANUNG.md, Abschnitt 1.1.
+# Genau EIN Port-Mapping, oben beim web-gateway. Prüfbefehl siehe
+# PLANUNG.md, Abschnitt 1.1.
 networks:
   chat-net:
     name: chat-net
