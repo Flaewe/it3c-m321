@@ -18,3 +18,6 @@ dist/
 
 # Playwright-Prüfartefakte
 .playwright-mcp/
+
+# Vite-Build der Web-App (wird im Docker-Build erzeugt)
+web-ui/dist/
