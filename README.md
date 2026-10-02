@@ -51,14 +51,25 @@ docker compose up --build
 > Genau dieses eigene Paket in der Liste ist das Erkennungszeichen: gebaut wird immer
 > das Projekt, nie eine Datei.
 
-Danach ist **nur** <http://localhost:8080> erreichbar — der Port des `web-gateway`. Alle
-anderen Container veröffentlichen keinen Port. Nachprüfen:
+Ohne Profil startet der **Schreibweg**: RabbitMQ, `chat-service`, PostgreSQL und
+`batch-writer`. Dabei veröffentlicht **kein einziger** Container einen Port — es gibt noch
+keine Web-App, die jemand aufrufen würde.
+
+Der Login aus Schritt 2 liegt im Profil `login` und kommt nur auf Verlangen dazu:
 
 ```bash
-# Kommentarzeilen wegwerfen, sonst zählt der Hinweistext mit
-grep -v '^[[:space:]]*#' docker-compose.yml | grep -c 'ports:'   # muss 1 ergeben
-docker compose ps                                                 # nur web-gateway zeigt einen Port
+docker compose --profile login up -d --build    # dann ist localhost:8080 da
 ```
+
+Nachprüfen, dass ohne Profil nichts offen ist:
+
+```bash
+docker compose config | grep -c 'published:'    # muss 0 ergeben
+docker compose ps                                # Spalte PORTS bleibt leer
+```
+
+`docker compose config` blendet ohne Profil die Dienste des Profils `login` aus — gemessen
+wird also genau der Stack, der ohne Profil startet.
 
 **Ohne Docker** laufen die Tests, die keinen Container brauchen:
 
@@ -79,10 +90,10 @@ Java-Standardbibliothek statt eines echten Containers.
 |---|---|---|---|
 | chat-service | Spring Boot 3, Java 21 | Nimmt Nachrichten per `POST /messages` an, legt sie auf Queue und Fanout-Exchange | vorhanden |
 | rabbitmq | RabbitMQ 3.13 | Message Queue zwischen den Services | vorhanden |
-| batch-writer | Spring Boot 3, Java 21 | Einziger Schreiber in die Datenbank | folgt |
-| postgres | PostgreSQL | Speichert den Chat-Verlauf | folgt |
-| keycloak | Keycloak 26 | Login (OIDC), Realm `chat` wird beim Start importiert | vorhanden |
-| web-gateway | Spring Boot 3, Java 21 | Einziger offener Port; prüft Tokens und reicht Keycloak durch | vorhanden |
+| batch-writer | Spring Boot 3, Java 21 | Einziger Schreiber in die Datenbank, schreibt in Stapeln | vorhanden |
+| postgres | PostgreSQL 16 | Speichert den Chat-Verlauf, Schema über Flyway | vorhanden |
+| keycloak | Keycloak 26 | Login (OIDC), Realm `chat` wird beim Start importiert | vorhanden, Profil `login` |
+| web-gateway | Spring Boot 3, Java 21 | Prüft Tokens und reicht Keycloak durch | vorhanden, Profil `login` |
 | Web-UI | React | Browser-Client | folgt |
 
 Alles unterhalb des Gateways läuft in einem internen Docker-Netzwerk und ist von aussen nicht
@@ -96,6 +107,10 @@ erreichbar.
   — grafische Fassung der Planung, lokal im Browser öffnen.
 - [`docs/plan-chat-service.md`](docs/plan-chat-service.md) — Schritt-für-Schritt-Plan, nach dem
   der `chat-service` gebaut wurde. Jeder Schritt mit Test.
+- [`docs/spec-batch-writer.md`](docs/spec-batch-writer.md) — Spezifikation des `batch-writer`:
+  der Vertrag auf der Queue, das Verhalten in jedem Fehlerfall, die Abnahmekriterien.
+- [`docs/plan-batch-writer.md`](docs/plan-batch-writer.md) — der Umsetzungsplan dazu, sechs
+  Schritte mit je einem Test.
 - [`keycloak/README.md`](keycloak/README.md) — was im Realm steht und warum jede Einstellung
   darin so gewählt ist.
 - [`CLAUDE.md`](CLAUDE.md) — Codestil-Regeln für dieses Projekt. Gelten auch für dich.

@@ -67,6 +67,29 @@ services:
     networks:
       - chat-net
 
+  # Der einzige Dienst, der in die Datenbank schreibt.
+  # Er veroeffentlicht keinen Port -- er hat keine Schnittstelle, die
+  # jemand aufrufen koennte. Seine einzige Eingabe ist die Queue.
+  batch-writer:
+    build:
+      context: .
+      dockerfile: batch-writer/Dockerfile
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - chat-net
+
   # Die Datenbank. Nur der batch-writer schreibt hinein.
   postgres:
     image: postgres:16-alpine
