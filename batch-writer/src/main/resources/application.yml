@@ -1,0 +1,37 @@
+spring:
+  application:
+    name: batch-writer
+
+  datasource:
+    # Im Docker-Netz heisst die Datenbank "postgres". Beim Start ausserhalb
+    # von Docker greift der Vorgabewert "localhost".
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:chat}
+    username: ${POSTGRES_USER:chat}
+    password: ${POSTGRES_PASSWORD:chat}
+
+  flyway:
+    # Das Schema entsteht aus den SQL-Dateien unter db/migration, nicht aus
+    # Java-Klassen. Begründung in PLANUNG.md, Abschnitt 3.8.
+    enabled: true
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: 5672
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+batch-writer:
+  # Wie viele Nachrichten höchstens in einen Stapel gehen. Aus PLANUNG.md 4.1.
+  batch-size: ${BATCH_SIZE:500}
+  # Nach wie vielen Millisekunden ein angefangener Stapel trotzdem geschrieben
+  # wird. Ohne diese Grenze bliebe die letzte Nachricht eines Tages liegen.
+  batch-timeout-ms: ${BATCH_TIMEOUT_MS:200}
+  # Wie lange nach einem Datenbankfehler gewartet wird, bevor der Stapel
+  # zurückgestellt wird. Ohne Pause würde RabbitMQ sofort erneut zustellen
+  # und der Dienst einen Prozessorkern mit sinnlosen Versuchen belegen.
+  db-retry-pause-ms: ${DB_RETRY_PAUSE_MS:2000}
+
+logging:
+  level:
+    # Im Unterricht wollen wir jeden Schritt sehen.
+    ch.benedict.m321: DEBUG

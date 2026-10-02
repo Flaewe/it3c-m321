@@ -324,7 +324,7 @@ läuft (`docker compose up -d --build`).
 | # | Kriterium | Befehl | Erwartet |
 |---|---|---|---|
 | A1 | Alle Tests laufen in einem Durchgang grün | `./mvnw clean test` | `BUILD SUCCESS` |
-| A2 | Kein Dienst veröffentlicht einen Port | `grep -v '^[[:space:]]*#' docker-compose.yml \| grep -c 'ports:'` | `0` ohne Profil `login` |
+| A2 | Kein Dienst veröffentlicht einen Port | `docker compose config \| grep -c 'published:'` | `0`. Ohne Profil blendet `config` die Dienste des Profils `login` aus — gemessen wird also genau der Stack, der ohne Profil startet |
 | A3 | Alle Dienste laufen | `docker compose ps --format '{{.Service}} {{.State}}'` | jede Zeile `running` |
 | A4 | 1000 Nachrichten kommen an | 1000 × `POST /messages`, dann `docker compose exec postgres psql -U chat -d chat -c "SELECT count(*) FROM message;"` | `1000` innerhalb 60 s |
 | A5 | Die Queue ist danach leer | `docker compose exec rabbitmq rabbitmqctl list_queues name messages` | `chat.persist 0` |

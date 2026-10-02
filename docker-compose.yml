@@ -67,6 +67,26 @@ services:
     networks:
       - chat-net
 
+  # Die Datenbank. Nur der batch-writer schreibt hinein.
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # depends_on allein wartet nur auf den Containerstart, nicht auf
+      # Betriebsbereitschaft. Ohne diesen Healthcheck startet der
+      # batch-writer schneller als die Datenbank und stirbt sofort.
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - chat-net
+
   # Der Login-Dienst. Erreichbar wird er erst, wenn das web-gateway
   # /auth/** durchreicht -- einen eigenen Port bekommt er nie.
   keycloak:
@@ -92,3 +112,6 @@ services:
 networks:
   chat-net:
     name: chat-net
+
+volumes:
+  pgdata:
