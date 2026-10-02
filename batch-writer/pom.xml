@@ -21,6 +21,16 @@
             <artifactId>spring-boot-starter-amqp</artifactId>
         </dependency>
 
+        <!-- JSON. Ausdruecklich deklariert und nicht vom AMQP-Starter
+             mitgeschleppt: der Rumpf jeder Nachricht ist JSON, und das ist
+             eine eigene Anforderung dieses Dienstes. Der Starter bringt
+             ausserdem das Modul mit, das ISO-8601 in Instant umwandelt.
+             Ohne dieses Modul koennte sentAt gar nicht gelesen werden. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-json</artifactId>
+        </dependency>
+
         <!-- JdbcTemplate statt JPA: batchUpdate ist genau das, was wir zeigen wollen -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
