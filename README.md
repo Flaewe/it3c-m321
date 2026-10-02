@@ -51,25 +51,21 @@ docker compose up --build
 > Genau dieses eigene Paket in der Liste ist das Erkennungszeichen: gebaut wird immer
 > das Projekt, nie eine Datei.
 
-Ohne Profil startet der **Schreibweg**: RabbitMQ, `chat-service`, PostgreSQL und
-`batch-writer`. Dabei veröffentlicht **kein einziger** Container einen Port — es gibt noch
-keine Web-App, die jemand aufrufen würde.
+Danach laufen sechs Dienste: RabbitMQ, `chat-service`, PostgreSQL, `batch-writer`,
+Keycloak und `web-gateway`. **Nur das `web-gateway` ist von aussen erreichbar**, unter
+<http://localhost:8080>. Alle anderen Container veröffentlichen keinen Port und sprechen nur
+im internen Netz `chat-net` miteinander.
 
-Der Login aus Schritt 2 liegt im Profil `login` und kommt nur auf Verlangen dazu:
-
-```bash
-docker compose --profile login up -d --build    # dann ist localhost:8080 da
-```
-
-Nachprüfen, dass ohne Profil nichts offen ist:
+Nachprüfen:
 
 ```bash
-docker compose config | grep -c 'published:'    # muss 0 ergeben
-docker compose ps                                # Spalte PORTS bleibt leer
+docker compose config | grep -c 'published:'    # muss 1 ergeben
+docker compose ps                                # nur web-gateway zeigt 0.0.0.0:8080->8080/tcp
 ```
 
-`docker compose config` blendet ohne Profil die Dienste des Profils `login` aus — gemessen
-wird also genau der Stack, der ohne Profil startet.
+Angaben wie `5432/tcp` in der Spalte `PORTS` sind **keine** offenen Ports: sie zeigen nur, auf
+welchem Port das Programm im Container lauscht. Ein offener Port sieht so aus:
+`0.0.0.0:8080->8080/tcp`.
 
 **Ohne Docker** laufen die Tests, die keinen Container brauchen:
 
@@ -92,8 +88,8 @@ Java-Standardbibliothek statt eines echten Containers.
 | rabbitmq | RabbitMQ 3.13 | Message Queue zwischen den Services | vorhanden |
 | batch-writer | Spring Boot 3, Java 21 | Einziger Schreiber in die Datenbank, schreibt in Stapeln | vorhanden |
 | postgres | PostgreSQL 16 | Speichert den Chat-Verlauf, Schema über Flyway | vorhanden |
-| keycloak | Keycloak 26 | Login (OIDC), Realm `chat` wird beim Start importiert | vorhanden, Profil `login` |
-| web-gateway | Spring Boot 3, Java 21 | Prüft Tokens und reicht Keycloak durch | vorhanden, Profil `login` |
+| keycloak | Keycloak 26 | Login (OIDC), Realm `chat` wird beim Start importiert | vorhanden |
+| web-gateway | Spring Boot 3, Java 21 | Einziger offener Port; prüft Tokens und reicht Keycloak durch | vorhanden |
 | Web-UI | React | Browser-Client | folgt |
 
 Alles unterhalb des Gateways läuft in einem internen Docker-Netzwerk und ist von aussen nicht
