@@ -60,6 +60,13 @@ public class MessageRepository {
 
         jdbcTemplate.batchUpdate(INSERT_SQL, new BatchPreparedStatementSetter() {
 
+            /**
+             * Füllt die Platzhalter für die Nachricht an dieser Stelle.
+             *
+             * Der Index zählt innerhalb des Stapels, nicht innerhalb der
+             * Tabelle. Spring ruft diese Methode einmal pro Nachricht auf
+             * und schickt danach alles zusammen an die Datenbank.
+             */
             @Override
             public void setValues(PreparedStatement statement, int index) throws SQLException {
                 IncomingMessage message = messages.get(index);
@@ -78,6 +85,7 @@ public class MessageRepository {
                 statement.setObject(6, gesendet);
             }
 
+            /** Sagt Spring, wie oft setValues aufgerufen werden muss. */
             @Override
             public int getBatchSize() {
                 return messages.size();

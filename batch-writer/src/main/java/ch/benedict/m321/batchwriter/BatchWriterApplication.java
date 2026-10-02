@@ -18,6 +18,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class BatchWriterApplication {
 
+    /** Startet den Dienst. Er wartet danach nur noch auf die Queue. */
     public static void main(String[] args) {
         SpringApplication.run(BatchWriterApplication.class, args);
     }
