@@ -2,6 +2,7 @@ package ch.benedict.m321.batchwriter.service;
 
 import ch.benedict.m321.batchwriter.config.BatchWriterProperties;
 import ch.benedict.m321.batchwriter.config.QueueNames;
+import ch.benedict.m321.batchwriter.config.RabbitConfig;
 import ch.benedict.m321.batchwriter.dto.IncomingMessage;
 import ch.benedict.m321.batchwriter.repository.MessageRepository;
 import java.util.ArrayList;
@@ -56,8 +57,15 @@ public class MessageBatchListener {
      *
      * <p>Kehrt diese Methode normal zurück, bestätigt Spring den ganzen
      * Stapel. Wirft sie, wird nichts bestätigt.
+     *
+     * <p><b>Die Fabrik steht hier ausdrücklich.</b> Fehlt die Angabe, nimmt
+     * Spring Boot seine eigene Standardfabrik: ohne Stapelbetrieb,
+     * batchSize 1. Dann kommt jede Nachricht einzeln an dieser Methode an,
+     * die eine Liste erwartet, die Umwandlung scheitert, und Spring schiebt
+     * die Nachricht als dauerhaft kaputt in die Dead-Letter-Queue. Genau so
+     * ist es im ersten echten Testlauf passiert — die Tabelle blieb leer.
      */
-    @RabbitListener(queues = QueueNames.PERSIST_QUEUE)
+    @RabbitListener(queues = QueueNames.PERSIST_QUEUE, containerFactory = RabbitConfig.BATCH_CONTAINER_FACTORY)
     public void receiveBatch(List<Message> batch) {
         log.debug("Received batch of {} messages", batch.size());
 

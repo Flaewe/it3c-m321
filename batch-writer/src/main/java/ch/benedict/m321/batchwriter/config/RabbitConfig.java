@@ -2,10 +2,8 @@ package ch.benedict.m321.batchwriter.config;
 
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
-import org.springframework.amqp.rabbit.annotation.RabbitListenerConfigurer;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
-import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistrar;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,7 +18,13 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 @EnableConfigurationProperties(BatchWriterProperties.class)
-public class RabbitConfig implements RabbitListenerConfigurer {
+public class RabbitConfig {
+
+    /**
+     * Der Name der Stapel-Fabrik. Der Listener nennt ihn ausdrücklich in
+     * seiner Annotation — siehe MessageBatchListener.
+     */
+    public static final String BATCH_CONTAINER_FACTORY = "batchListenerContainerFactory";
 
     /**
      * Der Schreibweg. Die Einstellungen müssen Zeichen für Zeichen zu
@@ -62,7 +66,7 @@ public class RabbitConfig implements RabbitListenerConfigurer {
      * Stapel, nachdem die Methode ohne Ausnahme zurückgekehrt ist — also
      * nach dem COMMIT. Wirft sie, wird nichts bestätigt.
      */
-    @Bean
+    @Bean(name = BATCH_CONTAINER_FACTORY)
     public SimpleRabbitListenerContainerFactory batchListenerContainerFactory(
             ConnectionFactory connectionFactory,
             BatchWriterProperties properties) {
@@ -82,16 +86,5 @@ public class RabbitConfig implements RabbitListenerConfigurer {
         factory.setDefaultRequeueRejected(true);
 
         return factory;
-    }
-
-    /**
-     * Sagt Spring, dass unsere Fabrik die Vorgabe ist.
-     *
-     * Ohne das würde Spring Boot seine eigene Fabrik nehmen, die keinen
-     * Stapelbetrieb kennt — und der Dienst schriebe wieder einzeln.
-     */
-    @Override
-    public void configureRabbitListeners(RabbitListenerEndpointRegistrar registrar) {
-        registrar.setContainerFactoryBeanName("batchListenerContainerFactory");
     }
 }

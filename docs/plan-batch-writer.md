@@ -181,3 +181,22 @@ falsch ist, gehört nicht in die Versionsgeschichte.
 
 Die Tests sind trotzdem getrennt geblieben: `MessageBatchListenerIntegrationTest` für
 Schritt 4, `DatabaseOutageTest` für Schritt 5.
+
+## Korrektur nach dem ersten Lauf mit Docker
+
+Beim ersten vollständigen `./mvnw clean test` mit Docker waren alle fünf Tests in
+`MessageBatchListenerIntegrationTest` rot: in keinem einzigen kam eine Zeile in der Tabelle an.
+
+**Ursache:** Die erste Fassung hat die Stapel-Fabrik über einen `RabbitListenerConfigurer` als
+Vorgabe eintragen wollen. Das hat nicht gegriffen. Eine Nachfrage beim fertig gebauten Container
+zeigte `consumerBatchEnabled = false` und `batchSize = 1` — die Standardfabrik von Spring Boot.
+Jede Nachricht kam einzeln an einer Methode an, die eine Liste erwartet, die Umwandlung scheiterte,
+und Spring schob die Nachricht als dauerhaft kaputt in die Dead-Letter-Queue.
+
+**Warum es kein früherer Test gemerkt hat:** `DatabaseOutageTest` ruft die Listener-Methode direkt
+auf und umgeht damit den Container. Genau die Stelle, an der der Fehler sass, war ungeprüft.
+
+**Korrektur:** Der Listener nennt seine Fabrik jetzt ausdrücklich in der Annotation
+(`containerFactory = RabbitConfig.BATCH_CONTAINER_FACTORY`), der Configurer ist weg. Neu dazu kommt
+`ListenerContainerConfigurationTest`: er prüft ohne Broker und ohne Datenbank, dass der Container
+wirklich im Stapelbetrieb läuft. Gegenprobe gemacht — ohne die Angabe in der Annotation wird er rot.
