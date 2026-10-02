@@ -33,6 +33,12 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * <p>Die Nachrichten werden <b>ohne die Kopfzeile __TypeId__</b> eingelegt —
  * genau so, wie es Szenario S5 beschreibt. Dass das funktioniert, ist der
  * eigentliche Punkt dieses Tests.
+ *
+ * <p><b>Jeder Test schreibt in seinen eigenen Raum</b> und zählt nur dort.
+ * Alle Tests dieser Klasse teilen sich Queue und Tabelle. Kommt eine
+ * Nachricht aus dem vorherigen Test verspätet an, landet sie sonst in der
+ * Zählung des nächsten — und der wartet dann vergeblich auf eine Zahl, die
+ * nie mehr stimmt.
  */
 @SpringBootTest
 @Testcontainers
@@ -63,12 +69,13 @@ class MessageBatchListenerIntegrationTest {
      */
     @Test
     void storesThousandMessages() {
+        UUID raum = UUID.randomUUID();
         for (int i = 0; i < 1000; i++) {
-            sendeNachricht(UUID.randomUUID());
+            sendeNachricht(UUID.randomUUID(), raum);
         }
 
         await().atMost(Duration.ofSeconds(60))
-                .untilAsserted(() -> assertThat(zaehleZeilen()).isEqualTo(1000));
+                .untilAsserted(() -> assertThat(zaehleZeilen(raum)).isEqualTo(1000));
     }
 
     /**
@@ -80,13 +87,14 @@ class MessageBatchListenerIntegrationTest {
      */
     @Test
     void storesDuplicateOnlyOnce() {
+        UUID raum = UUID.randomUUID();
         UUID kennung = UUID.randomUUID();
 
-        sendeNachricht(kennung);
-        sendeNachricht(kennung);
+        sendeNachricht(kennung, raum);
+        sendeNachricht(kennung, raum);
 
         await().atMost(Duration.ofSeconds(30))
-                .untilAsserted(() -> assertThat(zaehleZeilen()).isEqualTo(1));
+                .untilAsserted(() -> assertThat(zaehleZeilen(raum)).isEqualTo(1));
     }
 
     /**
@@ -98,13 +106,14 @@ class MessageBatchListenerIntegrationTest {
      */
     @Test
     void doesNotSendDuplicateToDeadLetterQueue() {
+        UUID raum = UUID.randomUUID();
         UUID kennung = UUID.randomUUID();
 
-        sendeNachricht(kennung);
-        sendeNachricht(kennung);
+        sendeNachricht(kennung, raum);
+        sendeNachricht(kennung, raum);
 
         await().atMost(Duration.ofSeconds(30))
-                .untilAsserted(() -> assertThat(zaehleZeilen()).isEqualTo(1));
+                .untilAsserted(() -> assertThat(zaehleZeilen(raum)).isEqualTo(1));
 
         Message ausDerDlq = rabbitTemplate.receive(QueueNames.DEAD_LETTER_QUEUE);
         assertThat(ausDerDlq).isNull();
@@ -116,11 +125,12 @@ class MessageBatchListenerIntegrationTest {
      */
     @Test
     void movesUnreadableMessageToDeadLetterQueue() {
+        UUID raum = UUID.randomUUID();
         sendeRohenRumpf("das ist kein JSON".getBytes(StandardCharsets.UTF_8));
-        sendeNachricht(UUID.randomUUID());
+        sendeNachricht(UUID.randomUUID(), raum);
 
         await().atMost(Duration.ofSeconds(30))
-                .untilAsserted(() -> assertThat(zaehleZeilen()).isEqualTo(1));
+                .untilAsserted(() -> assertThat(zaehleZeilen(raum)).isEqualTo(1));
 
         await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
             Message ausDerDlq = rabbitTemplate.receive(QueueNames.DEAD_LETTER_QUEUE);
@@ -133,20 +143,22 @@ class MessageBatchListenerIntegrationTest {
      */
     @Test
     void leavesQueueEmpty() {
+        UUID raum = UUID.randomUUID();
         for (int i = 0; i < 50; i++) {
-            sendeNachricht(UUID.randomUUID());
+            sendeNachricht(UUID.randomUUID(), raum);
         }
 
         await().atMost(Duration.ofSeconds(30))
-                .untilAsserted(() -> assertThat(zaehleZeilen()).isEqualTo(50));
+                .untilAsserted(() -> assertThat(zaehleZeilen(raum)).isEqualTo(50));
 
         Message rest = rabbitTemplate.receive(QueueNames.PERSIST_QUEUE);
         assertThat(rest).isNull();
     }
 
-    /** Zählt die Zeilen in der Tabelle. */
-    private int zaehleZeilen() {
-        Integer anzahl = jdbcTemplate.queryForObject("SELECT count(*) FROM message", Integer.class);
+    /** Zählt die Zeilen, die zu einem Raum gehören. */
+    private int zaehleZeilen(UUID raum) {
+        String abfrage = "SELECT count(*) FROM message WHERE room_id = ?";
+        Integer anzahl = jdbcTemplate.queryForObject(abfrage, Integer.class, raum);
         return anzahl == null ? 0 : anzahl;
     }
 
@@ -155,12 +167,12 @@ class MessageBatchListenerIntegrationTest {
      *
      * Genau so, wie das Prüfskript es laut Szenario S5 tut.
      */
-    private void sendeNachricht(UUID kennung) {
+    private void sendeNachricht(UUID kennung, UUID raum) {
         String json = """
-                {"id":"%s","roomId":"9a8b7c6d-2222-4e3f-9a0b-1c2d3e4f5061",\
+                {"id":"%s","roomId":"%s",\
                 "senderId":"keycloak-sub-123","senderName":"Alice Muster",\
                 "content":"Hallo Welt","sentAt":"2026-09-25T10:15:30.123456Z"}"""
-                .formatted(kennung);
+                .formatted(kennung, raum);
 
         sendeRohenRumpf(json.getBytes(StandardCharsets.UTF_8));
     }
