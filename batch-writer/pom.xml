@@ -88,6 +88,15 @@
             <artifactId>rabbitmq</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- Wartet im Test, bis der Listener fertig ist. Ohne das muesste
+             man eine feste Zeit schlafen: zu kurz macht den Test wacklig,
+             zu lang macht jeden Durchgang langsam. -->
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

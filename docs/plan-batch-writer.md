@@ -166,3 +166,18 @@ auf Verdacht.
 | S6 zwei Instanzen | Schritt 4 (Competing Consumers, ohne eigenen Code) |
 | S7 Datenbank weg | Schritt 5 |
 | S8 Regeln aus `CLAUDE.md` | alle Schritte |
+
+---
+
+## Abweichung vom Plan
+
+Schritt 4 und Schritt 5 sind **in einem Commit** umgesetzt und nicht in zweien.
+
+Der Grund: die Fehlerbehandlung steckt in derselben Methode wie das Entgegennehmen des
+Stapels. Ein Commit für Schritt 4 allein hätte einen Listener enthalten, der bei einem
+Datenbankfehler den ganzen Stapel in die Dead-Letter-Queue schiebt — also genau das
+Verhalten, das Schritt 5 verhindern soll. Ein Zwischenstand, von dem man weiss, dass er
+falsch ist, gehört nicht in die Versionsgeschichte.
+
+Die Tests sind trotzdem getrennt geblieben: `MessageBatchListenerIntegrationTest` für
+Schritt 4, `DatabaseOutageTest` für Schritt 5.
