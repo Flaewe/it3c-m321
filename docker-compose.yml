@@ -1,10 +1,25 @@
-# Ausbaustufe 2: Broker, chat-service, Keycloak und das web-gateway.
-# Postgres kommt in Schritt 4 dazu -- erst der batch-writer braucht sie.
+# Der Stack der Chat-App.
+#
+# Ohne Profil startet der SCHREIBWEG: Broker, chat-service, Datenbank und
+# batch-writer. Das ist Schritt 4 der Umsetzungsreihenfolge und der Stand,
+# der bewertet wird.
+#
+# Der Login aus Schritt 2 (web-gateway und keycloak) liegt im Profil "login"
+# und startet nur auf Verlangen:
+#
+#   docker compose --profile login up -d
+#
+# Grund: solange es keine Web-App gibt, die jemand aufruft, braucht der
+# Schreibweg keinen offenen Port. Und genau dann ist die Vorgabe "nur die
+# Web-App ist ueber localhost erreichbar" am einfachsten einzuhalten --
+# naemlich mit gar keinem Port.
 services:
 
   # Der einzige Dienst mit einem Port nach aussen. Er prüft die Tokens und
   # reicht Keycloak unter /auth durch, damit der Browser es erreichen kann.
   web-gateway:
+    profiles:
+      - login
     build:
       context: .
       dockerfile: web-gateway/Dockerfile
@@ -55,6 +70,8 @@ services:
   # Der Login-Dienst. Erreichbar wird er erst, wenn das web-gateway
   # /auth/** durchreicht -- einen eigenen Port bekommt er nie.
   keycloak:
+    profiles:
+      - login
     image: quay.io/keycloak/keycloak:26.0
     command: start-dev --import-realm
     environment:
