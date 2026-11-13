@@ -1,10 +1,14 @@
 package ch.benedict.m321.chatservice.delivery;
 
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Das Gedächtnis eines einzelnen Raums in dieser Instanz.
+ * Ein einzelner Raum in dieser Instanz: sein Gedächtnis und seine Clients.
  *
  * Ein Client, der kurz die Verbindung verliert, soll die verpassten
  * Nachrichten nachholen können, ohne dass wir die Datenbank fragen
@@ -12,8 +16,17 @@ import java.util.List;
  * {@value #MAX_EVENTS} Ereignisse in der Reihenfolge, in der sie
  * angekommen sind.
  *
+ * Ausserdem kennt der Raum die Clients, die gerade per SSE verbunden sind,
+ * und schickt ihnen jede neue Nachricht. So erfüllt er den Raumfilter aus
+ * 3.2: Eine Nachricht geht nur an die Clients ihres eigenen Raums.
+ *
+ * Alle Methoden sind synchronized, also unter EINER Sperre pro Raum. Das ist
+ * die Sperre aus 3.6: Solange eine Nachricht eingefügt und verschickt wird,
+ * kann sich kein Client dazwischen eintragen, und umgekehrt.
+ *
  * Die Liste lebt nur im Speicher. Startet die Instanz neu, ist sie leer.
  */
+@Slf4j
 public class RoomChannel {
 
     /**
@@ -25,6 +38,85 @@ public class RoomChannel {
 
     /** Die Ereignisse, das älteste vorne, das neueste hinten. */
     private final List<DeliveryEvent> events = new ArrayList<>();
+
+    /** Die Clients, die gerade an diesem Raum hängen. */
+    private final List<SseEmitter> subscribers = new ArrayList<>();
+
+    /**
+     * Eine neue Nachricht aus der Queue: merken und an alle Clients des
+     * Raums schicken.
+     *
+     * Beides passiert unter derselben Sperre. Ein Client, der sich gerade
+     * verbindet, sieht die Nachricht deshalb entweder schon in der Liste
+     * oder bekommt sie live, nie beides und nie keins (3.6).
+     *
+     * Schlägt das Senden an einen Client fehl, ist er weg (1.2). Wir merken
+     * ihn uns und tragen ihn erst nach der Schleife aus. Entfernen während
+     * der Schleife über dieselbe Liste würde Java mit einer
+     * ConcurrentModificationException beantworten.
+     */
+    public synchronized void publish(DeliveryEvent event) {
+        add(event);
+
+        List<SseEmitter> failed = new ArrayList<>();
+        for (SseEmitter emitter : subscribers) {
+            boolean sent = send(emitter, event);
+            if (!sent) {
+                failed.add(emitter);
+            }
+        }
+
+        subscribers.removeAll(failed);
+        if (!failed.isEmpty()) {
+            log.debug("Removed {} disconnected client(s), {} left", failed.size(), subscribers.size());
+        }
+    }
+
+    /**
+     * Trägt einen Client ein. Er bekommt nichts aus der Liste, nur die
+     * Nachrichten, die ab jetzt kommen (Fall 1 in 3.6).
+     */
+    public synchronized void subscribe(SseEmitter emitter) {
+        subscribers.add(emitter);
+    }
+
+    /**
+     * Trägt einen Client aus. Spring ruft das auf, wenn die Verbindung
+     * endet. Ist er schon weg, weil das Senden fehlschlug, passiert nichts.
+     */
+    public synchronized void unsubscribe(SseEmitter emitter) {
+        subscribers.remove(emitter);
+    }
+
+    /** Wie viele Clients gerade eingetragen sind. Für Tests und Logs. */
+    public synchronized int subscriberCount() {
+        return subscribers.size();
+    }
+
+    /**
+     * Schickt ein Ereignis als id:- und data:-Zeile an einen Client.
+     *
+     * Das JSON geht als String ohne Media-Type hinaus. So schreibt Spring es
+     * unverändert und setzt es nicht noch einmal in Anführungszeichen.
+     *
+     * Gibt false zurück, wenn der Client nicht mehr erreichbar ist:
+     * - IOException: Die Verbindung ist abgebrochen.
+     * - IllegalStateException ("already completed"): Der Client hat genau
+     *   während des Sendens getrennt.
+     * Beides fangen wir ab. Flöge die Ausnahme aus publish heraus, bekämen
+     * die übrigen Clients des Raums die Nachricht nicht mehr.
+     */
+    private boolean send(SseEmitter emitter, DeliveryEvent event) {
+        String eventId = event.id().toString();
+        String json = event.json();
+        SseEmitter.SseEventBuilder sseEvent = SseEmitter.event().id(eventId).data(json);
+        try {
+            emitter.send(sseEvent);
+            return true;
+        } catch (IOException | IllegalStateException exception) {
+            return false;
+        }
+    }
 
     /**
      * Hängt ein neues Ereignis hinten an und wirft das älteste weg, wenn

@@ -10,7 +10,8 @@ import java.util.UUID;
 
 /**
  * Nimmt jede Nachricht aus der eigenen Queue dieser Instanz entgegen und
- * legt sie in den Raum, zu dem sie gehört.
+ * gibt sie an den Raum, zu dem sie gehört. Der Raum merkt sie sich und
+ * schickt sie an seine verbundenen Clients.
  *
  * Bewusst ein einfacher MessageListener mit rohen Bytes und kein
  * @RabbitListener: Den Container dazu richten wir in RabbitConfig selbst
@@ -46,7 +47,7 @@ public class DeliveryListener implements MessageListener {
 
         UUID roomId = event.roomId();
         RoomChannel channel = roomChannels.channelFor(roomId);
-        channel.add(event);
-        log.debug("Stored message {} in room {}", event.id(), roomId);
+        channel.publish(event);
+        log.debug("Published message {} in room {}", event.id(), roomId);
     }
 }
