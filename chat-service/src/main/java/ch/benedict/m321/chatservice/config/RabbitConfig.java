@@ -123,13 +123,21 @@ public class RabbitConfig {
         container.setQueues(deliveryQueue);
         container.setMessageListener(deliveryListener);
 
-        // Nach einer Neuverbindung versucht der Container zuerst noch den
-        // alten Namen, bevor die neue Queue angelegt ist. So beschreibt es
-        // die Spring-AMQP-Dokumentation unter "broker-named queues". Ohne
-        // diese Einstellung kann der Consumer dann aufhören, statt es weiter
-        // zu versuchen. Das passiert nur manchmal, darum steht es von Anfang
-        // an hier.
+        // Nach einer Neuverbindung startet der Consumer neu und fragt den
+        // Namen der Queue ab, ein paar Millisekunden BEVOR die neue Queue
+        // angelegt ist. Er bekommt also noch den alten Namen, und den gibt
+        // es nicht mehr. So beschreibt es auch die Spring-AMQP-Dokumentation
+        // unter "broker-named queues". Gemessen in Schritt 4 des Plans:
+        //
+        // - setMissingQueuesFatal(false): Eine fehlende Queue hält den
+        //   Container nicht für immer an. Mit true meldet er "Stopping
+        //   container from aborted consumer" und holt nie wieder ab.
+        // - setDeclarationRetries(0): Nicht noch dreimal im Abstand von
+        //   5 Sekunden den alten Namen versuchen, sondern den Consumer gleich
+        //   neu starten. Dabei fragt er den neuen Namen ab. Die Instanz stellt
+        //   so nach etwa 5 statt 20 Sekunden wieder zu.
         container.setMissingQueuesFatal(false);
+        container.setDeclarationRetries(0);
 
         // Wirft die Verarbeitung irgendeine Ausnahme, wird die Nachricht
         // verworfen und nicht zurück in die Queue gestellt. Sonst käme sie
