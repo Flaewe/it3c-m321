@@ -93,6 +93,80 @@ prüfen. Alle späteren Schritte bauen darauf.
 Erwartet: 5 Tests, alle grün.
 
 **Geprüft und korrigiert:**
+>> .\mvnw -pl chat-service test "-Dtest=RoomChannelTest"
+remote: Enumerating objects: 21, done.
+remote: Counting objects: 100% (21/21), done.
+remote: Compressing objects: 100% (8/8), done.
+remote: Total 21 (delta 3), reused 21 (delta 3), pack-reused 0 (from 0)
+Unpacking objects: 100% (21/21), 4.74 KiB | 13.00 KiB/s, done.
+From https://github.com/Flaewe/it3c-m321
+   2e64a65..a12ae5c  main       -> origin/main
+Updating 2e64a65..a12ae5c
+Fast-forward
+ .../m321/chatservice/delivery/DeliveryEvent.java   |  16 +++
+ .../m321/chatservice/delivery/RoomChannel.java     | 103 ++++++++++++++++++++
+ .../m321/chatservice/delivery/RoomChannelTest.java | 107 +++++++++++++++++++++
+ 3 files changed, 226 insertions(+)
+ create mode 100644 chat-service/src/main/java/ch/benedict/m321/chatservice/delivery/DeliveryEvent.java
+ create mode 100644 chat-service/src/main/java/ch/benedict/m321/chatservice/delivery/RoomChannel.java
+ create mode 100644 chat-service/src/test/java/ch/benedict/m321/chatservice/delivery/RoomChannelTest.java
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -------------------< ch.benedict.m321:chat-service >--------------------
+[INFO] Building chat-service 0.1.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ chat-service ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ chat-service ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 12 source files with javac [debug parameters release 21] to target\classes
+[INFO] Die Annotationsverarbeitung ist aktiviert, da mindestens ein Prozessor im
+  Classpath gefunden wurde. In einem zukünftigen Release von javac kann die Annotationsverarbeitung deaktiviert werden,
+  es sei denn, mindestens ein Prozessor ist namentlich angegeben (-processor), oder ein Suchpfad
+  ist angegeben (--processor-path, --processor-module-path), oder die Annotationsverarbeitung
+  wurde explizit aktiviert (-proc:only, -proc:full).
+  Verwenden Sie "-Xlint:-options", um diese Meldung zu unterdrücken.
+  Verwenden Sie "-proc:none", um die Annotationsverarbeitung zu deaktivieren.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ chat-service ---
+[INFO] skip non existing resourceDirectory C:\Users\campi\it3c-m321\chat-service\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ chat-service ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 8 source files with javac [debug parameters release 21] to target\test-classes
+[INFO] Die Annotationsverarbeitung ist aktiviert, da mindestens ein Prozessor im
+  Classpath gefunden wurde. In einem zukünftigen Release von javac kann die Annotationsverarbeitung deaktiviert werden,
+  es sei denn, mindestens ein Prozessor ist namentlich angegeben (-processor), oder ein Suchpfad
+  ist angegeben (--processor-path, --processor-module-path), oder die Annotationsverarbeitung
+  wurde explizit aktiviert (-proc:only, -proc:full).
+  Verwenden Sie "-Xlint:-options", um diese Meldung zu unterdrücken.
+  Verwenden Sie "-proc:none", um die Annotationsverarbeitung zu deaktivieren.
+[INFO] 
+[INFO] --- surefire:3.5.6:test (default-test) @ chat-service ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running ch.benedict.m321.chatservice.delivery.RoomChannelTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.264 s -- in ch.benedict.m321.chatservice.delivery.RoomChannelTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  16.335 s
+[INFO] Finished at: 2026-11-13T23:21:25+01:00
+[INFO] ------------------------------------------------------------------------
+PS C:\Users\campi\it3c-m321>
+
 
 
 ## Schritt 2 — Die Nachricht lesen
