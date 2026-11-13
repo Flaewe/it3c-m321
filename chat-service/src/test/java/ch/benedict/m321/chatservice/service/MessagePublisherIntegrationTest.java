@@ -71,19 +71,21 @@ class MessagePublisherIntegrationTest {
 
     @Test
     void publishesToDeliveryExchange() {
-        // Wir spielen ein web-gateway: eigene Queue an den Fanout binden.
-        Queue gatewayQueue = new AnonymousQueue();
-        rabbitAdmin.declareQueue(gatewayQueue);
+        // Eine eigene Queue an den Fanout binden, so wie es jede
+        // chat-service-Instanz tut. Die Queue der Instanz selbst können wir
+        // hier nicht lesen: Ihr Listener holt die Nachrichten sofort ab.
+        Queue testQueue = new AnonymousQueue();
+        rabbitAdmin.declareQueue(testQueue);
 
         FanoutExchange exchange = new FanoutExchange(QueueNames.DELIVERY_EXCHANGE);
-        Binding binding = BindingBuilder.bind(gatewayQueue).to(exchange);
+        Binding binding = BindingBuilder.bind(testQueue).to(exchange);
         rabbitAdmin.declareBinding(binding);
 
         ChatMessage message = createMessage("Hallo Zustellweg");
 
         messagePublisher.publish(message);
 
-        String queueName = gatewayQueue.getName();
+        String queueName = testQueue.getName();
         ChatMessage delivered = receiveFrom(queueName);
         assertNotNull(delivered);
         assertEquals(message.id(), delivered.id());

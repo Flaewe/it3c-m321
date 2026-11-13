@@ -5,8 +5,13 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 /**
  * Prüft, dass der Spring-Kontext überhaupt hochfährt.
- * Ein RabbitMQ wird dafür nicht gebraucht: die Verbindung wird erst
- * beim ersten Senden aufgebaut, nicht beim Start.
+ *
+ * Ein RabbitMQ wird dafür nicht gebraucht. Der Listener-Container des
+ * Zustellwegs versucht zwar schon beim Start, sich zu verbinden. Findet er
+ * keinen Broker, meldet er "Broker not available" und versucht es im
+ * Hintergrund alle paar Sekunden wieder. Der Start wartet nicht darauf.
+ * Genau so soll es auch im Betrieb sein: Ist RabbitMQ kurz weg, startet
+ * der Dienst trotzdem und verbindet sich, sobald der Broker da ist.
  */
 @SpringBootTest
 class ChatServiceApplicationTest {
