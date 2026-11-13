@@ -217,6 +217,159 @@ Erwartet: 4 Tests, alle grün.
 
 **Geprüft und korrigiert:**
 
+.\mvnw -pl chat-service test "-Dtest=DeliveryEventParserTest"
+Already up to date.
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -------------------< ch.benedict.m321:chat-service >--------------------
+[INFO] Building chat-service 0.1.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ chat-service ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ chat-service ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 14 source files with javac [debug parameters release 21] to target\classes
+[INFO] Die Annotationsverarbeitung ist aktiviert, da mindestens ein Prozessor im
+  Classpath gefunden wurde. In einem zukünftigen Release von javac kann die Annotationsverarbeitung deaktiviert werden,
+  es sei denn, mindestens ein Prozessor ist namentlich angegeben (-processor), oder ein Suchpfad
+  ist angegeben (--processor-path, --processor-module-path), oder die Annotationsverarbeitung
+  wurde explizit aktiviert (-proc:only, -proc:full).
+  Verwenden Sie "-Xlint:-options", um diese Meldung zu unterdrücken.
+  Verwenden Sie "-proc:none", um die Annotationsverarbeitung zu deaktivieren.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ chat-service ---
+[INFO] skip non existing resourceDirectory C:\Users\campi\it3c-m321\chat-service\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ chat-service ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 9 source files with javac [debug parameters release 21] to target\test-classes
+[INFO] Die Annotationsverarbeitung ist aktiviert, da mindestens ein Prozessor im
+  Classpath gefunden wurde. In einem zukünftigen Release von javac kann die Annotationsverarbeitung deaktiviert werden,
+  es sei denn, mindestens ein Prozessor ist namentlich angegeben (-processor), oder ein Suchpfad
+  ist angegeben (--processor-path, --processor-module-path), oder die Annotationsverarbeitung
+  wurde explizit aktiviert (-proc:only, -proc:full).
+  Verwenden Sie "-Xlint:-options", um diese Meldung zu unterdrücken.
+  Verwenden Sie "-proc:none", um die Annotationsverarbeitung zu deaktivieren.
+[INFO] 
+[INFO] --- surefire:3.5.6:test (default-test) @ chat-service ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running ch.benedict.m321.chatservice.delivery.DeliveryEventParserTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.642 s -- in ch.benedict.m321.chatservice.delivery.DeliveryEventParserTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  14.560 s
+[INFO] Finished at: 2026-11-13T23:25:00+01:00
+[INFO] ------------------------------------------------------------------------
+PS C:\Users\campi\it3c-m321> 
+
+Vorübergehen Zeile im DeliveryEventParser.parse zu geändert (anderer inhalt):
+String rewritten = json.replace(" ", "");
+return new DeliveryEvent(id, roomId, rewritten);
+
+Um zu sehen ob das neu schreiben des Json erkannt wird.
+erwartet: beide Test die das JSon vergleichen rot.
+
+ .\mvnw -pl chat-service test "-Dtest=DeliveryEventParserTest"
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -------------------< ch.benedict.m321:chat-service >--------------------
+[INFO] Building chat-service 0.1.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ chat-service ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ chat-service ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 14 source files with javac [debug parameters release 21] to target\classes
+[INFO] Die Annotationsverarbeitung ist aktiviert, da mindestens ein Prozessor im
+  Classpath gefunden wurde. In einem zukünftigen Release von javac kann die Annotationsverarbeitung deaktiviert werden,
+  es sei denn, mindestens ein Prozessor ist namentlich angegeben (-processor), oder ein Suchpfad
+  ist angegeben (--processor-path, --processor-module-path), oder die Annotationsverarbeitung
+  wurde explizit aktiviert (-proc:only, -proc:full).
+  Verwenden Sie "-Xlint:-options", um diese Meldung zu unterdrücken.
+  Verwenden Sie "-proc:none", um die Annotationsverarbeitung zu deaktivieren.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ chat-service ---
+[INFO] skip non existing resourceDirectory C:\Users\campi\it3c-m321\chat-service\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ chat-service ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 9 source files with javac [debug parameters release 21] to target\test-classes
+[INFO] Die Annotationsverarbeitung ist aktiviert, da mindestens ein Prozessor im
+  Classpath gefunden wurde. In einem zukünftigen Release von javac kann die Annotationsverarbeitung deaktiviert werden,
+  es sei denn, mindestens ein Prozessor ist namentlich angegeben (-processor), oder ein Suchpfad
+  ist angegeben (--processor-path, --processor-module-path), oder die Annotationsverarbeitung
+  wurde explizit aktiviert (-proc:only, -proc:full).
+  Verwenden Sie "-Xlint:-options", um diese Meldung zu unterdrücken.
+  Verwenden Sie "-proc:none", um die Annotationsverarbeitung zu deaktivieren.
+[INFO] 
+[INFO] --- surefire:3.5.6:test (default-test) @ chat-service ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running ch.benedict.m321.chatservice.delivery.DeliveryEventParserTest
+[ERROR] Tests run: 4, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 0.251 s <<< FAILURE! -- in ch.benedict.m321.chatservice.delivery.DeliveryEventParserTest
+[ERROR] ch.benedict.m321.chatservice.delivery.DeliveryEventParserTest.readsIdsAndKeepsTheJsonOfTheSpecification -- Time elapsed: 0.010 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: expected: <{"id":"0b3c2f5a-1111-4a2b-8c3d-4e5f60718293","roomId":"9a8b7c6d-2222-4e3f-9a0b-1c2d3e4f5061","senderId":"keycloak-sub-123","senderName":"Alice Muster","content":"Hallo Welt","sentAt":"2026-09-25T10:15:30.123456Z"}> but was: <{"id":"0b3c2f5a-1111-4a2b-8c3d-4e5f60718293","roomId":"9a8b7c6d-2222-4e3f-9a0b-1c2d3e4f5061","senderId":"keycloak-sub-123","senderName":"AliceMuster","content":"HalloWelt","sentAt":"2026-09-25T10:15:30.123456Z"}>
+        at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+        at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+        at org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+        at org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:182)
+        at org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:177)
+        at org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1145)
+        at ch.benedict.m321.chatservice.delivery.DeliveryEventParserTest.readsIdsAndKeepsTheJsonOfTheSpecification(DeliveryEventParserTest.java:40)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+        at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+        at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+[ERROR] ch.benedict.m321.chatservice.delivery.DeliveryEventParserTest.keepsTheJsonExactlyAsItCame -- Time elapsed: 0.003 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: expected: <{ "content" : "Hallo",   "roomId":"9a8b7c6d-2222-4e3f-9a0b-1c2d3e4f5061", "unknownField": 42 , "id" : "0b3c2f5a-1111-4a2b-8c3d-4e5f60718293" }> but was: <{"content":"Hallo","roomId":"9a8b7c6d-2222-4e3f-9a0b-1c2d3e4f5061","unknownField":42,"id":"0b3c2f5a-1111-4a2b-8c3d-4e5f60718293"}>
+        at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+        at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+        at org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+        at org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:182)
+        at org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:177)
+        at org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1145)
+        at ch.benedict.m321.chatservice.delivery.DeliveryEventParserTest.keepsTheJsonExactlyAsItCame(DeliveryEventParserTest.java:56)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+        at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+        at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Failures: 
+[ERROR]   DeliveryEventParserTest.keepsTheJsonExactlyAsItCame:56 expected: <{ "content" : "Hallo",   "roomId":"9a8b7c6d-2222-4e3f-9a0b-1c2d3e4f5061", "unknownField": 42 , "id" : "0b3c2f5a-1111-4a2b-8c3d-4e5f60718293" }> but was: <{"content":"Hallo","roomId":"9a8b7c6d-2222-4e3f-9a0b-1c2d3e4f5061","unknownField":42,"id":"0b3c2f5a-1111-4a2b-8c3d-4e5f60718293"}>
+[ERROR]   DeliveryEventParserTest.readsIdsAndKeepsTheJsonOfTheSpecification:40 expected: <{"id":"0b3c2f5a-1111-4a2b-8c3d-4e5f60718293","roomId":"9a8b7c6d-2222-4e3f-9a0b-1c2d3e4f5061","senderId":"keycloak-sub-123","senderName":"Alice Muster","content":"Hallo Welt","sentAt":"2026-09-25T10:15:30.123456Z"}> but was: <{"id":"0b3c2f5a-1111-4a2b-8c3d-4e5f60718293","roomId":"9a8b7c6d-2222-4e3f-9a0b-1c2d3e4f5061","senderId":"keycloak-sub-123","senderName":"AliceMuster","content":"HalloWelt","sentAt":"2026-09-25T10:15:30.123456Z"}>
+[INFO] 
+[ERROR] Tests run: 4, Failures: 2, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  4.648 s
+[INFO] Finished at: 2026-11-13T23:37:18+01:00
+[INFO] ------------------------------------------------------------------------
+
 
 ## Schritt 3 — Eine eigene Queue pro Instanz
 
