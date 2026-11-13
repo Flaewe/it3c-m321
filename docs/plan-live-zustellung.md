@@ -359,8 +359,68 @@ Erwartet: grün. Der Test prüft beides, was schiefgehen kann: dass eine neue Qu
 Namen entsteht und gebunden ist, und dass der Container wirklich aus ihr abholt (Punkt 5).
 
 **Geprüft und korrigiert:**
+Der Test war zuerst rot, die Instanz brauchte rund 20 statt höchstens 15 Sekunden.
+Die Ursache: Der Consumer hat dreimal den alten Queue-Namen versucht.
+Die Gegenprobe: Mit setMissingQueuesFatal(true) hält der Container für immer an.
+Die Korrektur: setDeclarationRetries(0), danach etwa 5 Sekunden.
 
 
+>>.\mvnw -pl chat-service test "-Dtest=DeliveryReconnectIntegrationTest"
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  20.570 s
+[INFO] Finished at: 2026-11-14T00:30:20+01:00
+[INFO] ------------------------------------------------------------------------
+
+>>.\mvnw -pl chat-service test
+Results:
+[INFO] 
+[INFO] Tests run: 27, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  01:02 min
+[INFO] Finished at: 2026-11-14T00:26:31+01:00
+[INFO] ------------------------------------------------------------------------
+
+gegenprobe vorübergehend container.setDeclarationRetries(0); auskommentiert.
+erwartet: test wird wird nach 15 sekunden Rot, da die Verbindung nicht erneut probiert wird. (ursprünglich wurde 3 mit dem alten Namen der Queue probiert)
+
+>>.\mvnw -pl chat-service test "-Dtest=DeliveryReconnectIntegrationTest"
+[INFO] Results:
+[INFO] 
+[ERROR] Failures: 
+[ERROR]   DeliveryReconnectIntegrationTest.usesNewQueueAfterTheBrokerClosedTheConnection:80 Nach der Neuverbindung gibt es keine neue Queue mit Consumer ==> expected: not <null>
+[INFO] 
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  32.907 s
+[INFO] Finished at: 2026-11-14T00:36:48+01:00
+[INFO] ------------------------------------------------------------------------
+
+>>.\mvnw -pl chat-service test
+[INFO] Results:
+[INFO] 
+[ERROR] Failures: 
+[ERROR]   DeliveryReconnectIntegrationTest.usesNewQueueAfterTheBrokerClosedTheConnection:80 Nach der Neuverbindung gibt es keine neue Queue mit Consumer ==> expected: not <null>
+[INFO] 
+[ERROR] Tests run: 27, Failures: 1, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  01:14 min
+[INFO] Finished at: 2026-11-14T00:38:04+01:00
+[INFO] ------------------------------------------------------------------------
 ## Schritt 5 — Der Stream, nur live
 
 Ziel: `GET /stream?roomId=…` liefert Server-Sent Events. Jede neue Nachricht des Raums geht
