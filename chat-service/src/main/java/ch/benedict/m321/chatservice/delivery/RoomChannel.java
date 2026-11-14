@@ -73,11 +73,42 @@ public class RoomChannel {
     }
 
     /**
-     * Trägt einen Client ein. Er bekommt nichts aus der Liste, nur die
-     * Nachrichten, die ab jetzt kommen (Fall 1 in 3.6).
+     * Trägt einen Client ein und liefert ihm vorher nach, was er verpasst
+     * hat (Spezifikation 3.6).
+     *
+     * Was er aus der Liste bekommt, entscheidet eventsAfter: ohne
+     * Last-Event-ID nichts, mit bekannter ID alles danach, mit unbekannter
+     * ID die ganze Liste.
+     *
+     * Die Reihenfolge ist der Kern dieser Methode:
+     * 1. die verpassten Ereignisse aus der Liste lesen,
+     * 2. sie in Reihenfolge an den Client senden,
+     * 3. erst dann den Client als Empfänger eintragen.
+     *
+     * Warum das ohne Duplikaterkennung auskommt: publish hält dieselbe
+     * Sperre wie diese Methode. Zwischen 1 und 3 kann darum keine neue
+     * Nachricht eingefügt oder verschickt werden. Eine neue Nachricht kommt
+     * entweder vorher in die Liste, dann ist sie unter den nachgelieferten,
+     * oder nachher, dann geht sie live an den schon eingetragenen Client.
+     * Nie beides und nie keins. Und weil das Nachliefern fertig ist, bevor
+     * die erste Live-Nachricht hinausgeht, bleibt auch die Reihenfolge.
+     *
+     * Schlägt beim Nachliefern ein Senden fehl, ist der Client schon wieder
+     * weg. Dann tragen wir ihn gar nicht erst ein.
      */
-    public synchronized void subscribe(SseEmitter emitter) {
+    public synchronized void subscribe(SseEmitter emitter, String lastEventId) {
+        List<DeliveryEvent> missedEvents = eventsAfter(lastEventId);
+
+        for (DeliveryEvent event : missedEvents) {
+            boolean sent = send(emitter, event);
+            if (!sent) {
+                log.debug("Client disconnected while catching up, not subscribing it");
+                return;
+            }
+        }
+
         subscribers.add(emitter);
+        log.debug("Caught up {} event(s), {} client(s) subscribed", missedEvents.size(), subscribers.size());
     }
 
     /**
