@@ -683,13 +683,58 @@ nicht auffallen.
 ```powershell
 .\mvnw -pl chat-service test "-Dtest=TwoInstancesIntegrationTest"
 ```
-Erwartet: grün. Gegenprobe: In RabbitConfig vorübergehend einen festen Queue-Namen statt
+Erwartet: grün. 
+
+Gegenprobe: In RabbitConfig vorübergehend einen festen Queue-Namen statt
 "" setzen und exclusive auf false, sodass sich beide Instanzen eine Queue teilen (nur mit
 exclusive allein würde die zweite Instanz gar nicht starten). Dann verteilt RabbitMQ die
 Nachrichten auf beide, und A1 und A2 bekommen je weniger als 400. Danach zurückstellen.
 
 **Geprüft und korrigiert:**
 
+>>.\mvnw -pl chat-service test "-Dtest=TwoInstancesIntegrationTest"
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  01:27 min
+[INFO] Finished at: 2026-11-14T02:54:56+01:00
+[INFO] ------------------------------------------------------------------------
+
+>>.\mvnw -pl chat-service test
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 40, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  03:22 min
+[INFO] Finished at: 2026-11-14T02:51:55+01:00
+[INFO] ------------------------------------------------------------------------
+
+Gegenprobe
+In RabbitConfig Z.88 temporär exclusive = true auf false und new Queue("", ... zu new Queue("chat.delivery.shared",....
+Im Test TwoInstancesIntegrationTest Z.79 die Zeilen mit waitForDeliveryQueuesWithConsumer(2) und assertEquals(2, queuesWithConsumer) auskommentieren.
+Erwartet: Client bekommt nur um die 200 Nachrichten als 400, weil die von einer Queue auf die Instanzen aufgeteilt wurden.
+
+>>.\mvnw -pl chat-service test "-Dtest=TwoInstancesIntegrationTest"
+[INFO] Results:
+[INFO] 
+[ERROR] Failures: 
+[ERROR]   TwoInstancesIntegrationTest.bothClientsInRoomAGetAllMessagesExactlyOnceAndRoomBGetsNone:103->checkClientGotEverythingOnceInOrder:118 Client A1: Anzahl Ereignisse ==> expected: <400> but was: <200>
+[INFO] 
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  02:08 min
+[INFO] Finished at: 2026-11-14T03:10:02+01:00
+[INFO] ------------------------------------------------------------------------
 
 ## Schritt 8 — Doku und Abnahme von Hand
 
