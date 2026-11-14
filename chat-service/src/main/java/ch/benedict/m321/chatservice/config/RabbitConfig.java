@@ -28,11 +28,22 @@ import java.util.Map;
 public class RabbitConfig {
 
     /**
-     * So viele Nachrichten hält die eigene Queue einer Instanz höchstens
-     * (Spezifikation 2 und 3.5). Hängt die Instanz, wächst die Queue nicht
-     * ins Unendliche.
+     * So viele Nachrichten dürfen in der eigenen Queue einer Instanz
+     * WARTEN (Spezifikation 2 und 3.5). Hängt die Instanz, wächst die Queue
+     * nicht ins Unendliche.
+     *
+     * 999 statt 1000: Dazu kommt höchstens 1 Nachricht, die schon an die
+     * Instanz ausgeliefert, aber noch nicht bestätigt ist (prefetch 1, siehe
+     * deliveryListenerContainer). x-max-length zählt die nicht mit. Zusammen
+     * sind es so nie mehr als 1000, gemessen in Plan-Schritt 9.
      */
-    private static final int DELIVERY_QUEUE_MAX_LENGTH = 1000;
+    private static final int DELIVERY_QUEUE_MAX_LENGTH = 999;
+
+    /**
+     * So viele Nachrichten holt der Container höchstens auf Vorrat ab, bevor
+     * er die erste bestätigt hat. Der Standard von Spring ist 250.
+     */
+    private static final int DELIVERY_PREFETCH_COUNT = 1;
 
     /**
      * Der Schreibweg. "durable" heisst: die Queue überlebt einen Neustart
@@ -75,8 +86,9 @@ public class RabbitConfig {
      *   erfindet (spring.gen-...), nicht der Broker.
      * - Nicht durable, exclusive, auto-delete: Die Queue gehört nur dieser
      *   Verbindung. Endet sie, löscht RabbitMQ die Queue (Spezifikation 3.3).
-     * - x-max-length 1000 mit drop-head: Hängt die Instanz, fliegen die
+     * - x-max-length 999 mit drop-head: Hängt die Instanz, fliegen die
      *   ältesten Nachrichten raus, statt dass der Broker vollläuft (3.5).
+     *   Mit der einen unbestätigten sind es höchstens 1000.
      */
     @Bean
     public Queue deliveryQueue() {
@@ -144,6 +156,19 @@ public class RabbitConfig {
         // ein zweites Mal, stünde doppelt in der Liste des Raums, und die
         // Clients bekämen sie doppelt.
         container.setDefaultRequeueRejected(false);
+
+        // Nur 1 Nachricht auf Vorrat (Plan, Schritt 9). Mit dem Standard 250
+        // zeigte die Queue einer hängenden Instanz 1000 wartende plus 250
+        // ausgelieferte, aber unbestätigte, also 1250 statt höchstens 1000
+        // (S6). x-max-length zählt die unbestätigten nicht mit.
+        //
+        // Warum nicht ganz ohne Bestätigung (AcknowledgeMode.NONE): Dann
+        // nimmt eine Instanz, die noch läuft, aber nicht nachkommt, alle
+        // Nachrichten an und stapelt sie ohne Grenze im eigenen
+        // Arbeitsspeicher. Gemessen in Schritt 9: 0 in der Queue, alle 2000
+        // in der Instanz. Das Problem wäre nur vom Broker in die Instanz
+        // gewandert.
+        container.setPrefetchCount(DELIVERY_PREFETCH_COUNT);
         return container;
     }
 

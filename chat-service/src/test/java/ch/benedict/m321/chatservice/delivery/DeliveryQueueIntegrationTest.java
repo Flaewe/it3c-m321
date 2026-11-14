@@ -53,7 +53,8 @@ class DeliveryQueueIntegrationTest {
 
     /**
      * Genau eine Queue amq.gen-..., nicht durable, auto-delete, exclusive,
-     * mit x-max-length 1000 und x-overflow drop-head.
+     * mit x-max-length 999 und x-overflow drop-head (999 statt 1000: Plan,
+     * Schritt 9).
      */
     @Test
     void declaresOwnQueueWithTheSpecifiedProperties() throws Exception {
@@ -72,7 +73,7 @@ class DeliveryQueueIntegrationTest {
         assertEquals("true", autoDelete);
         assertEquals("true", exclusive);
         assertTrue(arguments.contains("x-max-length"), arguments);
-        assertTrue(arguments.contains("1000"), arguments);
+        assertTrue(arguments.contains("999"), arguments);
         assertTrue(arguments.contains("x-overflow"), arguments);
         assertTrue(arguments.contains("drop-head"), arguments);
 
