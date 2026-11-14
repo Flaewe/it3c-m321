@@ -84,7 +84,7 @@ Java-Standardbibliothek statt eines echten Containers.
 
 | Baustein | Technologie | Aufgabe | Stand |
 |---|---|---|---|
-| chat-service | Spring Boot 3, Java 21 | Nimmt Nachrichten per `POST /messages` an, legt sie auf Queue und Fanout-Exchange | vorhanden |
+| chat-service | Spring Boot 3, Java 21 | Nimmt Nachrichten per `POST /messages` an, legt sie auf Queue und Fanout-Exchange; stellt sie per Server-Sent Events (`GET /stream?roomId=…`) live an die Clients eines Raums zu | vorhanden |
 | rabbitmq | RabbitMQ 3.13 | Message Queue zwischen den Services | vorhanden |
 | batch-writer | Spring Boot 3, Java 21 | Einziger Schreiber in die Datenbank, schreibt in Stapeln | vorhanden |
 | postgres | PostgreSQL 16 | Speichert den Chat-Verlauf, Schema über Flyway | vorhanden |
@@ -107,6 +107,11 @@ erreichbar.
   der Vertrag auf der Queue, das Verhalten in jedem Fehlerfall, die Abnahmekriterien.
 - [`docs/plan-batch-writer.md`](docs/plan-batch-writer.md) — der Umsetzungsplan dazu, sechs
   Schritte mit je einem Test.
+- [`docs/spec-live-zustellung.md`](docs/spec-live-zustellung.md) — Spezifikation der
+  Live-Zustellung im `chat-service`: der Vertrag am Exchange und am Stream, die eigene Queue
+  pro Instanz, das Verhalten in jedem Fehlerfall, die Abnahmekriterien.
+- [`docs/plan-live-zustellung.md`](docs/plan-live-zustellung.md) — der Umsetzungsplan dazu,
+  acht Schritte mit je einem Test.
 - [`keycloak/README.md`](keycloak/README.md) — was im Realm steht und warum jede Einstellung
   darin so gewählt ist.
 - [`CLAUDE.md`](CLAUDE.md) — Codestil-Regeln für dieses Projekt. Gelten auch für dich.
