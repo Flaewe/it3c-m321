@@ -13,6 +13,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class ChatServiceApplication {
 
+    /** Startet den Dienst. Spring Boot baut daraus den Web-Server, die Verbindung zu RabbitMQ und alle Beans. */
     public static void main(String[] args) {
         SpringApplication.run(ChatServiceApplication.class, args);
     }

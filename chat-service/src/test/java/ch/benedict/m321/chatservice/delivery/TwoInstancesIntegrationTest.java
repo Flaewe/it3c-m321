@@ -73,6 +73,7 @@ class TwoInstancesIntegrationTest {
         }
     }
 
+    /** S3: Jeder Client in Raum A bekommt alle 400 genau einmal und pro Absender in Reihenfolge, der Client in Raum B keine. */
     @Test
     void bothClientsInRoomAGetAllMessagesExactlyOnceAndRoomBGetsNone() throws Exception {
         // Vorher: genau zwei eigene Queues, jede mit ihrem Consumer.

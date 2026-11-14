@@ -40,6 +40,7 @@ class MessageControllerIntegrationTest {
     @Autowired
     private RabbitTemplate rabbitTemplate;
 
+    /** Der Normalfall: Eine gültige Nachricht bekommt 202 und liegt danach in chat.persist. */
     @Test
     void acceptsMessageAndPutsItOnTheQueue() throws Exception {
         String requestBody = """
@@ -68,6 +69,7 @@ class MessageControllerIntegrationTest {
         assertEquals("Anna Muster", message.senderName());
     }
 
+    /** Eine Nachricht aus Leerzeichen ist keine Nachricht. Sie wird mit 400 abgewiesen, bevor sie RabbitMQ erreicht. */
     @Test
     void rejectsEmptyContent() throws Exception {
         String requestBody = """

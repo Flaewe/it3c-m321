@@ -22,12 +22,14 @@ class SendMessageRequestTest {
 
     private Validator validator;
 
+    /** Ein Validator, wie ihn auch Spring für @Valid benutzt. Neu für jeden Test, damit kein Test vom anderen abhängt. */
     @BeforeEach
     void setUp() {
         ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
         this.validator = factory.getValidator();
     }
 
+    /** Eine vollständige Nachricht hat keine Verstösse. */
     @Test
     void acceptsCompleteRequest() {
         SendMessageRequest request = new SendMessageRequest(
@@ -38,6 +40,7 @@ class SendMessageRequestTest {
         assertTrue(violations.isEmpty());
     }
 
+    /** Nur Leerzeichen zählen als leer (@NotBlank), nicht als Inhalt. */
     @Test
     void rejectsBlankContent() {
         SendMessageRequest request = new SendMessageRequest(
@@ -48,6 +51,7 @@ class SendMessageRequestTest {
         assertEquals(1, violations.size());
     }
 
+    /** Ohne Raum wüssten wir nicht, wohin die Nachricht gehört. */
     @Test
     void rejectsMissingRoomId() {
         SendMessageRequest request = new SendMessageRequest(

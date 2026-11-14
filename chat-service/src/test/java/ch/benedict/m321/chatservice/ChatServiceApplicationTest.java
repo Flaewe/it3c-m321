@@ -16,6 +16,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 @SpringBootTest
 class ChatServiceApplicationTest {
 
+    /** Fährt der Kontext ohne Broker hoch? Mehr prüft dieser Test bewusst nicht. */
     @Test
     void contextLoads() {
         // Kein Assert nötig. Fährt der Kontext nicht hoch, wirft Spring

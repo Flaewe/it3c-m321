@@ -62,6 +62,7 @@ class DeliveryQueueLimitIntegrationTest {
     @Autowired
     private RoomChannels roomChannels;
 
+    /** S6 im Kleinen: Die Instanz hängt, 2000 Nachrichten kommen, und die Queue hält trotzdem höchstens 1000. */
     @Test
     void queueOfAHangingInstanceNeverHoldsMoreThanTheLimit() throws Exception {
         UUID roomId = UUID.randomUUID();
