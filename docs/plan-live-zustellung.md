@@ -492,6 +492,48 @@ ersetzen. Dann muss der Test «Stream bleibt offen» rot werden.
 
 **Geprüft und korrigiert:**
 
+
+>>.\mvnw -pl chat-service test "-Dtest=StreamIntegrationTest"
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  55.036 s
+[INFO] Finished at: 2026-11-14T01:10:48+01:00
+[INFO] ------------------------------------------------------------------------
+
+>>.\mvnw -pl chat-service test
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 31, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  01:41 min
+[INFO] Finished at: 2026-11-14T01:12:31+01:00
+[INFO] ------------------------------------------------------------------------
+
+gegenprobe
+In StreamController new SseEmitter(NO_TIMEOUT) durch new SseEmitter() ersetzen.
+erwartet: Der stream wird vor Servertimeout geschlossen, 1 test rot
+
+>>.\mvnw -pl chat-service test "-Dtest=StreamIntegrationTest"
+[INFO] Results:
+[INFO] 
+[ERROR] Failures: 
+[ERROR]   StreamIntegrationTest.keepsTheStreamOpenLongerThanTheServerTimeout:142 Der Stream wurde vom Server geschlossen ==> expected: <1> but was: <0>
+[INFO] 
+[ERROR] Tests run: 4, Failures: 1, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  33.526 s
+[INFO] Finished at: 2026-11-14T01:19:08+01:00
+[INFO] ------------------------------------------------------------------------
+
 ## Schritt 6 — Nachholen mit Last-Event-ID, unter der Sperre
 
 Ziel:Ein Client, der mit Last-Event-ID neu verbindet, bekommt genau die fehlenden
