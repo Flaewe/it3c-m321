@@ -764,7 +764,23 @@ S1, S8, S2, dann S3 bis S7. Ergebnis jedes Szenarios mit Zahl unten eintragen.
 
 **Geprüft und korrigiert:**
 
-S1:
+| Szenario | Gemessen | Erwartet | Ergebnis |
+|---|---|---|---|
+| S1 | chat-service: Tests run: 41, Failures: 0 · web-gateway: Tests run: 10, Failures: 0 · batch-writer: Tests run: 27, Failures: 0 · BUILD success | alles grün, BUILD SUCCESS | [INFO] M321 Chat-App ...................................... SUCCESS [  0.125 s]
+[INFO] chat-service ....................................... SUCCESS [03:48 min]
+[INFO] web-gateway ........................................ SUCCESS [  6.150 s]
+[INFO] batch-writer ....................................... SUCCESS [ 36.285 s]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------|
+| S8 | Streams: 0 Treffer, `.env` im Repo: 0, Kommentare vollständig | 0 Treffer, keine | ok |
+| S2 | Dienste laufen: 6 von 6, `published`: 1 Zeile (`8080`) | alle, 1 Zeile (Gateway) | ok |
+| S3 | A1 400, A2 400, B 0, verschiedene IDs 400/400 und 400/400, Reihenfolge 4× OK 200, Kontrolle B 1 | 400, 400, 0, 400/400, OK 200 | ok |
+| S4 | vorher 2 Queues `amq.gen-…` mit consumers 1, nach 30 s 1 | 2, dann 1 | ok |
+| S5 | Client nach 5 s 100, in der Tabelle 100 | 100, 100 | ok |
+| S6 | Höchststand Queue 1000 (999 ready + 1 unacked), Client A 5000, B nach dem Fortsetzen `sub-s6` 1, `nach-pause` 1, neue Queue `xlJv…` statt `jgD7…` | ≤ 1000, 5000, wenige, 1 | ok |
+| S7 | Ereignisse 51, verschieden 51, `sub-s7` OK 50, `live` OK 1 | 51, 51, OK 50, OK 1 | ok |
+
 
 ## Abgleich mit der Spezifikation
 
@@ -875,3 +891,43 @@ deswegen habe ich prefetch 1 und 999 gewählt.
 [INFO] Total time:  44.358 s
 [INFO] Finished at: 2026-11-14T10:40:05+01:00
 [INFO] --------------------------------------------------------------------
+
+
+## Schritt 10 — Korrektur aus der Abnahme: Spec an die Messung angleichen
+
+**Änderungsgrund:** Die Abnahme vom 14.11. (S1 bis S8 auf frischem Klon) hat drei Stellen
+gezeigt, an denen die Spec nicht zum gemessenen Verhalten passt:
+
+KI-Auftrag: keiner. Die Spec schreibe ich 
+
+1. **S6, Grenze der Queue.** Gemessen: `messages` 1000, davon 999 `ready` und 1
+   `unacknowledged`. Die Spec verlangt «nie mehr als 999». Seit Schritt 9 ist
+   `x-max-length` 999 und prefetch 1, zusammen also höchstens 1000.
+2. **999 statt 1000 an falschen Stellen.** In Schritt 9 wurde in der Spec «1000» auch dort
+   durch «999» ersetzt, wo es nicht um die Queue geht: bei der Liste pro Raum (1.4, 2, 3.3,
+   3.6) und beim Vorgabewert von `last.sh`. Im Code hält `RoomChannel.MAX_EVENTS` weiterhin
+   1000.
+3. **Warten nach dem Hochskalieren.** Im ersten Lauf von S6 wurde Instanz 2 pausiert, bevor
+   ihre Anwendung gestartet war. Sie hatte noch keine Queue, und die Clients bekamen keine
+   Verbindung. S3 und S6 verbinden Clients direkt nach `--scale chat-service=2`. Ein «0»
+   kann dann ein falsches Bestanden sein.
+
+**Ziel:** Die Spec beschreibt, was gemessen wurde, und die Abläufe in S3 und S6 sind
+wiederholbar.
+
+**Änderungen an `docs/spec-live-zustellung.md`:**
+- S6: «nie mehr als 999» → «nie mehr als 1000 in der Spalte `messages` (999 wartend in der
+  Queue, 1 unbestätigt bei der Instanz)», in 3.5 ebenso.
+- S6: «Erwartet wird das die Nachrichten ankommen …» → «Erwartet wird 1: die eine
+  unbestätigte Nachricht, die die Instanz vor der Pause schon geholt hatte.»
+- Liste pro Raum in 1.4, 2, 3.3 und 3.6 zurück auf 1000.
+- `last.sh`: Vorgabewert zurück auf `${ANZAHL:-1000}`.
+- S3 und S6: nach `docker compose up -d --scale chat-service=2` warten, bis
+  `rabbitmqctl list_queues name consumers` zwei `amq.gen-…` mit `consumers 1` zeigt.
+- S3: am Schluss die Kontrolle mit einer Nachricht in Raum B (`SENDER=kontrolle-b`,
+  erwartet 1), damit «B: 0» kein falsches Bestanden sein kann.
+
+**Test:** S3 und S6 nach dem neuen Ablauf. Ergebnis der Abnahme vom 14.11.: S3 400/400/0,
+4× OK 200, Kontrolle B 1. S6 Höchststand 1000, A 5000, B `sub-s6` 1, `nach-pause` 1.
+
+**Geprüft und korrigiert:**

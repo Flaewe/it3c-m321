@@ -89,7 +89,7 @@ Der Live-Zustellweg übernimmt ausschliesslich die Live-Verteilung.
 Nicht enthalten sind:
 - Dauerhafte Speicherung. Nichts wird gespeichert, wenn die Instanz beendet wird.
 - Zustellung an offline Benutzer ohne verfügbaren Nachrichtenverlauf.
-- Eine Obergrenze für den Speicher. Die Instanz hält bis zu 999 Nachrichten für jeden Raum, der seit ihrem Start eine Nachricht bekam. Die Zahl der Räume ist nicht begrenzt, mit vielen Räumen wächst also auch der Speicher.
+- Eine Obergrenze für den Speicher. Die Instanz hält bis zu 1000 Nachrichten für jeden Raum, der seit ihrem Start eine Nachricht bekam. Die Zahl der Räume ist nicht begrenzt, mit vielen Räumen wächst also auch der Speicher.
 
 Anforderungen der Zustellung:
 - Nachrichten eines Absenders werden in ihrer ursprünglichen Reihenfolge zugestellt.
@@ -123,7 +123,7 @@ Der Queue-Name wird automatisch erzeugt und ist nicht im Quellcode fest hinterle
 Jede chat-service-Instanz erhält dadurch alle veröffentlichten Nachrichten unabhängig von den anderen Instanzen.
 Eine gemeinsame Queue wäre falsch, da RabbitMQ Nachrichten zwischen den Instanzen verteilen würde. Dadurch würde nicht jede Instanz eine Kopie jeder Nachricht erhalten.
 
-Die Queues werden bei einem Neustart verworfen. Was eine Instanz während ihres Ausfalls verpasst, kann sie selbst nicht nachliefern, denn nach dem Neustart ist ihr Puffer leer. Nachliefern kann nur eine Instanz, die während des Ausfalls lief: Sie hat über den Fanout jede Nachricht jedes Raums erhalten, ihre Liste enthält also auch die Nachrichten aus dieser Zeit, die letzten 999 pro Raum.
+Die Queues werden bei einem Neustart verworfen. Was eine Instanz während ihres Ausfalls verpasst, kann sie selbst nicht nachliefern, denn nach dem Neustart ist ihr Puffer leer. Nachliefern kann nur eine Instanz, die während des Ausfalls lief: Sie hat über den Fanout jede Nachricht jedes Raums erhalten, ihre Liste enthält also auch die Nachrichten aus dieser Zeit, die letzten 1000 pro Raum.
 
 ## 3. Verhalten
 
@@ -168,7 +168,7 @@ Wenn eine chat-service-Instanz beendet wird oder abstürzt:
 
 Nachrichten während des Ausfalls werden nicht über die entfernte Queue zugestellt.
 
-Verbindet sich ein Client danach mit Last-Event-ID neu, hängt das Nachholen davon ab, bei welcher Instanz er landet. Eine Instanz, die durchgehend lief, kennt seine ID und liefert die fehlenden Nachrichten nach, sofern sie noch unter den letzten 999 des Raums sind. Eine neu gestartete Instanz kennt die ID nicht. Der Client erhält dann ihre Liste, also nur die Nachrichten seit ihrem Start (siehe 3.6). Was dazwischen lag, fehlt auf dem Live-Weg, steht aber in der Datenbank. Bei welcher Instanz er landet, kann der Client nicht wählen.
+Verbindet sich ein Client danach mit Last-Event-ID neu, hängt das Nachholen davon ab, bei welcher Instanz er landet. Eine Instanz, die durchgehend lief, kennt seine ID und liefert die fehlenden Nachrichten nach, sofern sie noch unter den letzten 1000 des Raums sind. Eine neu gestartete Instanz kennt die ID nicht. Der Client erhält dann ihre Liste, also nur die Nachrichten seit ihrem Start (siehe 3.6). Was dazwischen lag, fehlt auf dem Live-Weg, steht aber in der Datenbank. Bei welcher Instanz er landet, kann der Client nicht wählen.
 
 ### 3.4 Datenbank und batch-writer weg (S5)
 
@@ -201,11 +201,11 @@ Verhalten:
 
 - Die andere chat-service-Instanz verarbeitet ihre Nachrichten weiterhin.
 - Der Client an der anderen Instanz erhält alle 5000 gesendeten Nachrichten.
-- Solange die Verbindung der hängenden Instanz besteht, wächst ihre Queue, aber nie über 999 Nachrichten. drop-head entfernt jeweils die älteste.
-- Eine angehaltene Instanz schickt RabbitMQ keine Heartbeats mehr. Nach etwa einer Minuten schliesst RabbitMQ deshalb ihre Verbindung (Messung unten). Weil die Queue exklusiv ist, wird sie dabei gelöscht, samt allen Nachrichten darin. Bis die Instanz fortgesetzt wird, hat sie keine Queue mehr, und der Fanout gibt ihr nichts.
+- Solange die Verbindung der hängenden Instanz besteht, wächst ihre Queue, aber nie über 999 wartende Nachrichten. drop-head entfernt jeweils die älteste. Dazu kommt höchstens eine unbestätigte, die die Instanz schon geholt hat (prefetch 1). Die Spalte messages zeigt deshalb nie mehr als 1000.
+- Eine angehaltene Instanz schickt RabbitMQ keine Heartbeats mehr. Nach etwa zwei Minuten schliesst RabbitMQ deshalb ihre Verbindung (Messung unten). Weil die Queue exklusiv ist, wird sie dabei gelöscht, samt allen Nachrichten darin. Bis die Instanz fortgesetzt wird, hat sie keine Queue mehr, und der Fanout gibt ihr nichts.
 - Nach dem Fortsetzen merkt die Instanz, dass ihre Verbindung weg ist. Sie baut eine neue auf, legt eine neue Queue an, bindet sie an chat.delivery und holt wieder ab. Ab dann stellt sie neue Nachrichten wieder zu.
 - Ihr fehlen alle Nachrichten, die in der gelöschten Queue lagen, und alle, die veröffentlicht wurden, während sie keine Queue hatte. Sie stehen auch nicht in ihrer Liste. Holt ein Client bei dieser Instanz mit Last-Event-ID nach, fehlen ihm diese Nachrichten, ohne dass er es merkt. Vollständig nachholen kann er nur bei einer Instanz, die durchgehend lief (siehe 3.3).
-- Ist die Pause kürzer, bleibt die Verbindung und damit die Queue bestehen. Dann stellt die Instanz nach dem Fortsetzen die noch vorhandenen, höchstens 999 Nachrichten zu. Ältere, die drop-head entfernt hat, fehlen ihr.
+- Ist die Pause kürzer, bleibt die Verbindung und damit die Queue bestehen. Dann stellt die Instanz nach dem Fortsetzen die noch vorhandenen, höchstens 1000 Nachrichten zu (999 aus der Queue und die eine unbestätigte). Ältere, die drop-head entfernt hat, fehlen ihr.
 
 Messung (am batch-writer, bei dem wie beim chat-service kein Heartbeat eingestellt ist):
 
@@ -219,7 +219,7 @@ docker compose exec rabbitmq rabbitmqctl list_connections name state timeout
 
 Ergebnis:
 - Die Spalte timeout zeigt 60, das ist der Spring-Standard.
-- Nach dem Pausieren stand die Verbindung noch 1 Minute 48 Sekunden als running da. Bei der nächsten Abfrage, 2 Minuten 9 Sekunden nach dem Pausieren, war sie weg. RabbitMQ schliesst die Verbindung also nach etwa einer Minuten ohne Heartbeats.
+- Nach dem Pausieren stand die Verbindung noch 1 Minute 48 Sekunden als running da. Bei der nächsten Abfrage, 2 Minuten 9 Sekunden nach dem Pausieren, war sie weg. RabbitMQ schliesst die Verbindung also nach etwa zwei Minuten ohne Heartbeats.
 - 10 Sekunden nach dem Fortsetzen stand eine neue Verbindung mit einem anderen Port da (vorher 44882, nachher 59862). Spring hat sich also von selbst neu verbunden.
 - Ob die neue Queue des chat-service auch wieder an chat.delivery gebunden wird, kann der batch-writer nicht zeigen. Das prüft S6 mit der Nachricht nach-pause.
 
@@ -232,7 +232,7 @@ Der Client verwendet dazu den HTTP-Header
 Last-Event-ID: 0b3c2f5a-1111-4a2b-8c3d-4e5f60718293
 ```
 
-Der chat-service hält pro Raum eine Liste der letzten 999 Nachrichten im Speicher.
+Der chat-service hält pro Raum eine Liste der letzten 1000 Nachrichten im Speicher.
 
 Es gibt zwei Fälle:
 
@@ -276,7 +276,7 @@ $RAUM_B = "9a8b7c6d-2222-4e3f-9a0b-00000000000b"
 Nachrichten-Skript erstellen (verwendet in S3, S5, S6 und S7):
 ```powershell
 @'
-for i in $(seq 1 ${ANZAHL:-999}); do
+for i in $(seq 1 ${ANZAHL:-1000}); do
   curl -s -o /dev/null -X POST -H 'Content-Type: application/json' -d '{"roomId":"'"$RAUM"'","senderId":"'"${SENDER:-sub-1}"'","senderName":"Test","content":"Nachricht '"$i"'"}' http://localhost:8080/messages
 done
 echo fertig
@@ -331,6 +331,11 @@ Erwartetes Ergebnis : Beide Clients in Raum A erhalten alle 400 Nachrichten, jed
 Zwei Instanzen starten:
 ```powershell
 docker compose up -d --scale chat-service=2
+```
+
+Warten, bis beide Instanzen bereit sind, also zwei Queues amq.gen-… mit consumers 1 haben. Direkt nach dem Hochskalieren läuft die Anwendung der neuen Instanz noch nicht, ein Client bekäme dort keine Verbindung:
+```powershell
+while (@(docker compose exec -T rabbitmq rabbitmqctl list_queues name consumers | Select-String '^amq\.gen-\S+\s+1$').Count -lt 2) { Start-Sleep -Seconds 2 }
 ```
 
 Clients an Instanz 1 und Instanz 2 sowie im Raum B verbinden
@@ -393,6 +398,14 @@ Get-Content $env:TEMP\reihenfolge.sh | docker compose exec -T --index 2 -e DATEI
 ```
 Erwartet wird viermal: OK 200.
 
+Kontrolle, dass Client B wirklich verbunden ist. Sonst wäre «0 Ereignisse» bei B auch dann richtig, wenn B gar keinen Stream bekommen hat:
+```powershell
+Get-Content $env:TEMP\last.sh | docker compose exec -T --index 1 -e RAUM=$RAUM_B -e ANZAHL=1 -e SENDER=kontrolle-b chat-service sh -c "tr -d '\r' | sh"
+Start-Sleep -Seconds 3
+docker compose exec --index 2 chat-service grep -c 'kontrolle-b' /tmp/client-b.txt
+```
+Erwartet wird 1.
+
 ### S4 – Instanz entfernen und Queues überprüfen
 
 Szenario: S4 
@@ -402,6 +415,11 @@ Erwartetes Ergebnis : Vorher genau zwei Queues am Fanout-Exchange, je mit einem 
 Zwei Instanzen starten
 ```powershell
 docker compose up -d --scale chat-service=2
+```
+
+Warten, bis beide Instanzen bereit sind, also zwei Queues amq.gen-… mit consumers 1 haben. Direkt nach dem Hochskalieren läuft die Anwendung der neuen Instanz noch nicht, ein Client bekäme dort keine Verbindung:
+```powershell
+while (@(docker compose exec -T rabbitmq rabbitmqctl list_queues name consumers | Select-String '^amq\.gen-\S+\s+1$').Count -lt 2) { Start-Sleep -Seconds 2 }
 ```
 
 Queues überprüfen
@@ -475,11 +493,16 @@ Erwartet werden 100 gespeicherte Nachrichten.
 ### S6 – Angehaltene Instanz und Queue-Begrenzung
 Szenario: S6 
 Prüfung: Eine von zwei Instanzen angehalten (docker pause), 5000 Nachrichten gesendet, danach fortgesetzt.
-Erwartetes Ergebnis: Ihre Queue hält nie mehr als 999 Nachrichten; der Client an der anderen Instanz erhält alle 5000; nach dem Fortsetzen stellt die Instanz neue Nachrichten wieder zu.
+Erwartetes Ergebnis: Ihre Queue hält nie mehr als 1000 Nachrichten in der Spalte messages (999 wartend, 1 unbestätigt); der Client an der anderen Instanz erhält alle 5000; nach dem Fortsetzen stellt die Instanz neue Nachrichten wieder zu.
 
 Zwei Instanzen starten
 ```powershell
 docker compose up -d --scale chat-service=2
+```
+
+Warten, bis beide Instanzen bereit sind, also zwei Queues amq.gen-… mit consumers 1 haben. Direkt nach dem Hochskalieren läuft die Anwendung der neuen Instanz noch nicht, ein Client bekäme dort keine Verbindung:
+```powershell
+while (@(docker compose exec -T rabbitmq rabbitmqctl list_queues name consumers | Select-String '^amq\.gen-\S+\s+1$').Count -lt 2) { Start-Sleep -Seconds 2 }
 ```
 
 Clients verbinden. --max-time ist 900, weil 5000 Nachrichten mehrere Minuten dauern und die Pause mindestens 3 Minuten dauert:
@@ -508,13 +531,13 @@ while ($true) { docker compose exec rabbitmq rabbitmqctl list_queues name messag
 Get-Content $env:TEMP\last.sh | docker compose exec -T --index 1 -e RAUM=$RAUM_A -e ANZAHL=5000 -e SENDER=sub-s6 chat-service sh -c "tr -d '\r' | sh"
 ```
 
-Warten, bis die Pause mindestens 3 Minuten gedauert hat. Gemessen schliesst RabbitMQ die Verbindung nach etwa einer Minuten (siehe 3.5). So ist sicher, dass die Queue weg ist, egal wie schnell das Senden war:
+Warten, bis die Pause mindestens 3 Minuten gedauert hat. Gemessen schliesst RabbitMQ die Verbindung nach etwa zwei Minuten (siehe 3.5). So ist sicher, dass die Queue weg ist, egal wie schnell das Senden war:
 ```powershell
 while (((Get-Date) - $pauseStart).TotalSeconds -lt 180) { Start-Sleep -Seconds 5 }
 ```
 
 Im zweiten Fenster wird erwartet:
-- Die Queue der pausierten Instanz ist die amq.gen-…, deren messages ansteigt. Sie zeigt nie mehr als 999.
+- Die Queue der pausierten Instanz ist die amq.gen-…, deren messages ansteigt. Sie zeigt nie mehr als 1000.
 - Etwa 2 Minuten nach dem Pausieren verschwindet sie aus der Liste. Danach steht nur noch eine amq.gen-… da.
 
 Empfangene Nachrichten der anderen Instanz zählen
@@ -535,7 +558,7 @@ Zählen, wie viele der 5000 Nachrichten beim Client an Instanz 2 angekommen sind
 ```powershell
 docker compose exec --index 2 chat-service grep -c 'sub-s6' /tmp/client-s6-b.txt
 ```
-Erwartet wird das die Nachrichten ankommen, die schon unterwegs zur Instanz waren. Die Nachrichten lagen in der gelöschten Queue oder kamen, als die Instanz keine Queue hatte (siehe 3.5).
+Erwartet wird 1: die eine unbestätigte Nachricht, die die Instanz vor der Pause schon geholt hatte. Die übrigen lagen in der gelöschten Queue oder kamen, als die Instanz keine Queue hatte (siehe 3.5).
 
 Prüfen, ob die Instanz wieder zustellt: eine neue Nachricht mit SENDER=nach-pause senden, 5 Sekunden warten und beim Client an Instanz 2 zählen:
 ```powershell
