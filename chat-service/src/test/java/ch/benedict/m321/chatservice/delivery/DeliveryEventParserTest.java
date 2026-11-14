@@ -56,6 +56,7 @@ class DeliveryEventParserTest {
         assertEquals(json, event.json());
     }
 
+    /** Kaputtes JSON darf nicht still durchrutschen. Nur so kann der Listener es erkennen und verwerfen. */
     @Test
     void rejectsBrokenJson() {
         String json = "{\"id\": \"0b3c2f5a-";
@@ -64,6 +65,7 @@ class DeliveryEventParserTest {
         assertThrows(IllegalArgumentException.class, () -> parser.parse(body));
     }
 
+    /** Ohne roomId wüssten wir nicht, an welche Clients die Nachricht gehen soll. */
     @Test
     void rejectsJsonWithoutRoomId() {
         String json = "{\"id\":\"0b3c2f5a-1111-4a2b-8c3d-4e5f60718293\",\"content\":\"Hallo\"}";

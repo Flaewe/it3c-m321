@@ -18,6 +18,7 @@ class RoomChannelTest {
     /** Alle Ereignisse eines Tests gehören zum selben Raum. */
     private final UUID roomId = UUID.randomUUID();
 
+    /** Fall 1 aus 3.6: Ein Client ohne Last-Event-ID bekommt nichts aus der Liste, nur noch live. */
     @Test
     void returnsNothingWithoutLastEventId() {
         RoomChannel channel = new RoomChannel();
@@ -28,6 +29,7 @@ class RoomChannelTest {
         assertTrue(result.isEmpty());
     }
 
+    /** Fall 2 aus 3.6: Mit bekannter ID kommt genau das, was danach kam, in derselben Reihenfolge. */
     @Test
     void returnsEventsAfterAKnownIdInOrder() {
         RoomChannel channel = new RoomChannel();
@@ -41,6 +43,7 @@ class RoomChannelTest {
         assertEquals(expected, result);
     }
 
+    /** Hat der Client schon alles gesehen, gibt es nichts nachzuliefern. */
     @Test
     void returnsNothingAfterTheLastEvent() {
         RoomChannel channel = new RoomChannel();
@@ -53,6 +56,7 @@ class RoomChannelTest {
         assertTrue(result.isEmpty());
     }
 
+    /** Kennt die Instanz die ID nicht, bekommt der Client die ganze Liste, damit er möglichst wenig verpasst (3.6). */
     @Test
     void returnsWholeListForAnUnknownId() {
         RoomChannel channel = new RoomChannel();

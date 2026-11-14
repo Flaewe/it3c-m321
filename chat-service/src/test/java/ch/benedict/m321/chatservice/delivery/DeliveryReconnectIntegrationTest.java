@@ -63,6 +63,7 @@ class DeliveryReconnectIntegrationTest {
     @Qualifier("deliveryQueue")
     private Queue deliveryQueue;
 
+    /** Der ganze Weg nach einer Neuverbindung: alte Queue weg, neue Queue mit neuem Namen, gebunden, und die Instanz holt wirklich daraus ab. */
     @Test
     void usesNewQueueAfterTheBrokerClosedTheConnection() throws Exception {
         // 1. Die erste Queue der Instanz abwarten und ihren Namen merken.
