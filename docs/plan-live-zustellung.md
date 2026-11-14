@@ -795,3 +795,65 @@ S1, S8, S2, dann S3 bis S7. Ergebnis jedes Szenarios mit Zahl unten eintragen.
 | S6 angehaltene Instanz | 4 (Neuverbindung) | 8 |
 | S7 Neuverbindung mit Last-Event-ID | 6 | 8 |
 | S8 Regeln aus `CLAUDE.md` | alle Schritte | 8 |
+
+---
+
+## Änderungen nach dem Push
+
+## Schritt 9 — Korrektur aus der Abnahme: Queue-Grenze bei hängender Instanz
+
+**Änderungsgrund:** Im Probelauf von S6 auf dem echten Stack zeigte
+`rabbitmqctl list_queues name messages` für die Queue der pausierten Instanz **1250**
+Nachrichten, S6 verlangt höchstens 1000. Aufgeschlüsselt mit `messages_ready` und
+`messages_unacknowledged`: 1000 warten in der Queue, 250 sind schon an die Instanz
+ausgeliefert und unbestätigt. Spring holt standardmässig 250 Nachrichten auf Vorrat
+(prefetch). `x-max-length` begrenzt nur die wartenden, die unbestätigten zählen nicht dazu.
+Kein Test aus den Schritten 1 bis 7 prüft die Grenze, darum fiel es erst von Hand auf.
+
+Ziel: Die Queue einer hängenden Instanz hält auch in der Spalte `messages` nie mehr als
+1000 Nachrichten.
+
+Warum hier: Der Fehler kam erst bei der Abnahme in Schritt 8 heraus. Die Schritte 1 bis 7
+sind fertig und geprüft, die Korrektur ist eine Einstellung am Container aus Schritt 3.
+
+**KI-Auftrag im Wortlaut:**
+
+> Lies `CLAUDE.md`, die Globalen Vorgaben in `docs/plan-live-zustellung.md`, den
+> Änderungsgrund oben und in `docs/spec-live-zustellung.md` die Abschnitte 2 und 3.5.
+>
+> 1. Am `SimpleMessageListenerContainer` in `RabbitConfig`:
+>    `container.setAcknowledgeMode(AcknowledgeMode.NONE)`. Dann gilt eine Nachricht für
+>    RabbitMQ als erledigt, sobald sie an die Instanz geschickt ist. Es gibt keine
+>    unbestätigten mehr, und `x-max-length` begrenzt alles, was in der Queue steht. Erkläre
+>    im Kommentar, warum das für den Live-Weg kein Verlust ist: Er verwirft bei einem Fehler
+>    schon heute, statt zurückzustellen.
+> 2. `container.setDefaultRequeueRejected(false)` bewirkt mit `NONE` nichts mehr, weil
+>    nichts mehr zurückgestellt werden kann. Entferne die Zeile. Der Kommentar sagt dafür,
+>    dass `NONE` dasselbe Ziel erreicht: Keine Nachricht kommt doppelt.
+> 3. Schreib `DeliveryQueueLimitIntegrationTest` mit Testcontainers-RabbitMQ. Eine hängende
+>    Instanz wird ohne Änderung am Produktionscode nachgestellt: Der Test hält mit
+>    `synchronized (channel) { … }` die Sperre des `RoomChannel` eines Raums. Der Listener
+>    bleibt dann bei der ersten Nachricht dieses Raums in `publish` stecken, der Consumer
+>    bleibt aber angemeldet, genau wie bei einer hängenden Instanz. Während die Sperre gehalten
+>    wird:
+>    - 2000 Nachrichten in diesen Raum über `MessagePublisher.publish` senden,
+>    - warten (Schleife, höchstens 15 Sekunden), bis `messages_ready` der eigenen Queue
+>      1000 erreicht,
+>    - prüfen: `messages` ist höchstens 1000, `messages_unacknowledged` ist 0.
+>
+>    Danach die Sperre freigeben.
+>
+> Lass danach alle Tests des chat-service laufen, vor allem `DeliveryReconnectIntegrationTest`,
+> `ReconnectIntegrationTest` und `TwoInstancesIntegrationTest`. Wird einer rot, erklär mir
+> zuerst die Ursache, bevor du etwas änderst.
+
+**Test:**
+```powershell
+.\mvnw -pl chat-service test "-Dtest=DeliveryQueueLimitIntegrationTest"
+.\mvnw -pl chat-service test
+```
+Erwartet: grün, danach alle Tests grün. Gegenprobe: Die Zeile mit `AcknowledgeMode.NONE`
+vorübergehend auskommentieren. Dann muss `DeliveryQueueLimitIntegrationTest` rot werden,
+mit `messages` 1250. Danach zurückstellen. Anschliessend S6 von Hand wiederholen.
+
+**Geprüft und korrigiert:**
