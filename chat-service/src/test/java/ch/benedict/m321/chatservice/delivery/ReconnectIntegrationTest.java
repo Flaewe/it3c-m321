@@ -152,36 +152,76 @@ class ReconnectIntegrationTest {
 
     /**
      * Die Sperre aus 3.6: Während ein zweiter Thread laufend sendet,
-     * verbindet sich ein Client mit der ID der 50. Nachricht. Er muss genau
-     * «Nachricht 51» bis «Nachricht 300» bekommen, lückenlos, in Reihenfolge,
-     * keine doppelt.
+     * verbinden sich nacheinander zehn Clients mit Last-Event-ID neu. Jeder
+     * muss genau die Nachrichten ab seiner ID bis «Nachricht 1000»
+     * bekommen, lückenlos, in Reihenfolge, keine doppelt.
+     *
+     * Warum zehn Clients und je 450 nachzuholende Nachrichten: Ein Fehler in
+     * der Sperre zeigt sich nur, wenn eine Live-Nachricht genau in die paar
+     * Millisekunden fällt, in denen ein Client nachholt. Mit einem Client
+     * und wenigen nachzuholenden Nachrichten blieb die Gegenprobe aus dem
+     * Plan in 15 von 15 Läufen grün, mit einem Client und 450 noch in 13
+     * von 15. Zehn Clients pro Lauf geben dem Fehler zehnmal so viele
+     * Gelegenheiten.
      *
      * Fünfmal, weil sich ein Fehler in der Sperre nur manchmal zeigt. Jede
      * Wiederholung hat ihren eigenen Raum.
      */
     @RepeatedTest(5)
     void catchUpAndLiveDoNotOverlapWhileMessagesArrive() throws Exception {
+        int totalMessages = 1000;
+        int clientCount = 10;
+        int firstConnectAt = 500;
+        int connectEvery = 50;
+        int catchUpSize = 450;
+
         UUID roomId = UUID.randomUUID();
-        Thread sender = new Thread(() -> sendMessages(roomId, "race", 300), "race-sender");
+        Thread sender = new Thread(() -> sendMessages(roomId, "race", totalMessages), "race-sender");
         sender.start();
 
-        // Sobald die 50. Nachricht im Raum steht, mit ihrer ID verbinden.
-        List<DeliveryEvent> firstFifty = waitForEventsInRoom(roomId, 50);
-        DeliveryEvent fiftieth = firstFifty.get(49);
-        String fiftiethId = fiftieth.id().toString();
+        List<SseTestClient> clients = new ArrayList<>();
+        List<Integer> lastSeenNumbers = new ArrayList<>();
+        try {
+            // Bei 500, 550, ... 950 Nachrichten im Raum je einen Client
+            // verbinden, der die letzten 450 davon verpasst hat.
+            for (int k = 0; k < clientCount; k++) {
+                int connectAt = firstConnectAt + k * connectEvery;
+                List<DeliveryEvent> eventsSoFar = waitForEventsInRoom(roomId, connectAt);
+                int lastSeenNumber = connectAt - catchUpSize;
+                DeliveryEvent lastSeen = eventsSoFar.get(lastSeenNumber - 1);
+                String lastSeenId = lastSeen.id().toString();
 
-        try (SseTestClient client = connect(roomId, fiftiethId)) {
+                SseTestClient client = connect(roomId, lastSeenId);
+                clients.add(client);
+                lastSeenNumbers.add(lastSeenNumber);
+            }
+
             sender.join(MAX_WAIT_MILLIS);
-            client.waitForEvents(250, MAX_WAIT_MILLIS);
+
+            for (int k = 0; k < clientCount; k++) {
+                SseTestClient client = clients.get(k);
+                int lastSeenNumber = lastSeenNumbers.get(k);
+                int expectedCount = totalMessages - lastSeenNumber;
+                client.waitForEvents(expectedCount, MAX_WAIT_MILLIS);
+            }
             Thread.sleep(500);
 
-            List<String> ids = client.ids();
-            Set<String> distinctIds = new HashSet<>(ids);
-            assertEquals(ids.size(), distinctIds.size(), "Ein Ereignis kam doppelt");
+            for (int k = 0; k < clientCount; k++) {
+                SseTestClient client = clients.get(k);
+                int lastSeenNumber = lastSeenNumbers.get(k);
 
-            List<String> contents = contentsOf(client, "race");
-            List<String> expected = numberedContents(51, 300);
-            assertEquals(expected, contents);
+                List<String> ids = client.ids();
+                Set<String> distinctIds = new HashSet<>(ids);
+                assertEquals(ids.size(), distinctIds.size(), "Client " + k + ": ein Ereignis kam doppelt");
+
+                List<String> contents = contentsOf(client, "race");
+                List<String> expected = numberedContents(lastSeenNumber + 1, totalMessages);
+                assertEquals(expected, contents, "Client " + k + " ab Nachricht " + lastSeenNumber);
+            }
+        } finally {
+            for (SseTestClient client : clients) {
+                client.close();
+            }
         }
     }
 
