@@ -595,7 +595,54 @@ schwach: mehr Nachrichten senden, bis die Gegenprobe rot wird. Danach zurückste
 
 **Geprüft und korrigiert:**
 
+>>.\mvnw -pl chat-service test "-Dtest=ReconnectIntegrationTest,StreamIntegrationTest,RoomChannelTest"
+[INFO] Tests run: 17, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  01:13 min
+[INFO] Finished at: 2026-11-14T01:28:35+01:00
+[INFO] ------------------------------------------------------------------------
 
+>>.\mvnw -pl chat-service test
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 39, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  01:59 min
+[INFO] Finished at: 2026-11-14T01:30:35+01:00
+[INFO] ------------------------------------------------------------------------
+
+Gegenprobe
+In RoomChannel.subscribe Z.99 synchronized  entfernen.
+Die Zeile subscribers.add(emitter) ganz unten von der Methode an den Anfang verschieben und dort in synchronized (this) { … } einpacken, um die Reihenfolge der Liste zu ändern.
+public void subscribe(SseEmitter emitter, String lastEventId) {
+    synchronized (this) {
+        subscribers.add(emitter);
+    }
+    List<DeliveryEvent> missedEvents = eventsAfter(lastEventId);
+        ...
+Erwarte Test: catchUpAndLiveDoNotOverlapWhileMessagesArrive ist minimun einmal rot.
+
+>>.\mvnw -pl chat-service test "-Dtest=ReconnectIntegrationTest"
+[INFO] Results:
+[INFO] 
+[ERROR] Failures: 
+[ERROR]   ReconnectIntegrationTest.catchUpAndLiveDoNotOverlapWhileMessagesArrive:219 Client 1 ab Nachricht 100 ==> expected: <[Nachricht 101, Nachricht 102, Nachricht 103, Nachricht 104, Nachricht 105, Nachricht 106, Nachricht 107, Nachricht 108, Nachricht 109, Nachricht 110, Nachricht 111,....
+......,998, Nachricht 999, Nachricht 1000]>
+[INFO] 
+[ERROR] Tests run: 8, Failures: 1, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  01:10 min
+[INFO] Finished at: 2026-11-14T02:34:46+01:00
+[INFO] ------------------------------------------------------------------------
 ## Schritt 7 — Zwei Instanzen (S3)
 
 Ziel: Ein Test startet zwei Instanzen des chat-service gegen denselben RabbitMQ und belegt
