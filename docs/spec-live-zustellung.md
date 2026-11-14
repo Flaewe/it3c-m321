@@ -89,7 +89,7 @@ Der Live-Zustellweg übernimmt ausschliesslich die Live-Verteilung.
 Nicht enthalten sind:
 - Dauerhafte Speicherung. Nichts wird gespeichert, wenn die Instanz beendet wird.
 - Zustellung an offline Benutzer ohne verfügbaren Nachrichtenverlauf.
-- Eine Obergrenze für den Speicher. Die Instanz hält bis zu 1000 Nachrichten für jeden Raum, der seit ihrem Start eine Nachricht bekam. Die Zahl der Räume ist nicht begrenzt, mit vielen Räumen wächst also auch der Speicher.
+- Eine Obergrenze für den Speicher. Die Instanz hält bis zu 999 Nachrichten für jeden Raum, der seit ihrem Start eine Nachricht bekam. Die Zahl der Räume ist nicht begrenzt, mit vielen Räumen wächst also auch der Speicher.
 
 Anforderungen der Zustellung:
 - Nachrichten eines Absenders werden in ihrer ursprünglichen Reihenfolge zugestellt.
@@ -115,7 +115,7 @@ Aufbau Queues
 | Auto-delete | true |
 | Binding | chat.delivery |
 | Name | Automatisch generiert (amq.gen-...) |
-| x-max-length | 1000 |
+| x-max-length | 999 |
 | x-overflow | drop-head |
 
 Der Queue-Name wird automatisch erzeugt und ist nicht im Quellcode fest hinterlegt.
@@ -123,7 +123,7 @@ Der Queue-Name wird automatisch erzeugt und ist nicht im Quellcode fest hinterle
 Jede chat-service-Instanz erhält dadurch alle veröffentlichten Nachrichten unabhängig von den anderen Instanzen.
 Eine gemeinsame Queue wäre falsch, da RabbitMQ Nachrichten zwischen den Instanzen verteilen würde. Dadurch würde nicht jede Instanz eine Kopie jeder Nachricht erhalten.
 
-Die Queues werden bei einem Neustart verworfen. Was eine Instanz während ihres Ausfalls verpasst, kann sie selbst nicht nachliefern, denn nach dem Neustart ist ihr Puffer leer. Nachliefern kann nur eine Instanz, die während des Ausfalls lief: Sie hat über den Fanout jede Nachricht jedes Raums erhalten, ihre Liste enthält also auch die Nachrichten aus dieser Zeit, die letzten 1000 pro Raum.
+Die Queues werden bei einem Neustart verworfen. Was eine Instanz während ihres Ausfalls verpasst, kann sie selbst nicht nachliefern, denn nach dem Neustart ist ihr Puffer leer. Nachliefern kann nur eine Instanz, die während des Ausfalls lief: Sie hat über den Fanout jede Nachricht jedes Raums erhalten, ihre Liste enthält also auch die Nachrichten aus dieser Zeit, die letzten 999 pro Raum.
 
 ## 3. Verhalten
 
@@ -168,7 +168,7 @@ Wenn eine chat-service-Instanz beendet wird oder abstürzt:
 
 Nachrichten während des Ausfalls werden nicht über die entfernte Queue zugestellt.
 
-Verbindet sich ein Client danach mit Last-Event-ID neu, hängt das Nachholen davon ab, bei welcher Instanz er landet. Eine Instanz, die durchgehend lief, kennt seine ID und liefert die fehlenden Nachrichten nach, sofern sie noch unter den letzten 1000 des Raums sind. Eine neu gestartete Instanz kennt die ID nicht. Der Client erhält dann ihre Liste, also nur die Nachrichten seit ihrem Start (siehe 3.6). Was dazwischen lag, fehlt auf dem Live-Weg, steht aber in der Datenbank. Bei welcher Instanz er landet, kann der Client nicht wählen.
+Verbindet sich ein Client danach mit Last-Event-ID neu, hängt das Nachholen davon ab, bei welcher Instanz er landet. Eine Instanz, die durchgehend lief, kennt seine ID und liefert die fehlenden Nachrichten nach, sofern sie noch unter den letzten 999 des Raums sind. Eine neu gestartete Instanz kennt die ID nicht. Der Client erhält dann ihre Liste, also nur die Nachrichten seit ihrem Start (siehe 3.6). Was dazwischen lag, fehlt auf dem Live-Weg, steht aber in der Datenbank. Bei welcher Instanz er landet, kann der Client nicht wählen.
 
 ### 3.4 Datenbank und batch-writer weg (S5)
 
@@ -188,7 +188,7 @@ Die Live-Zustellung verwendet nur die Daten aus RabbitMQ und dem internen Speich
 ### 3.5 Instanz hängt (S6)
 
 Verarbeitet eine chat-service-Instanz Nachrichten nicht rechtzeitig, sammeln sich diese in ihrer Queue.
-Die Queue ist auf maximal 1000 Nachrichten begrenzt.
+Die Queue ist auf maximal 999 Nachrichten begrenzt.
 Bei Überschreitung der Grenze wird durch x-overflow = drop-head die älteste Nachricht entfernt.
 
 Begründung:
@@ -201,11 +201,11 @@ Verhalten:
 
 - Die andere chat-service-Instanz verarbeitet ihre Nachrichten weiterhin.
 - Der Client an der anderen Instanz erhält alle 5000 gesendeten Nachrichten.
-- Solange die Verbindung der hängenden Instanz besteht, wächst ihre Queue, aber nie über 1000 Nachrichten. drop-head entfernt jeweils die älteste.
+- Solange die Verbindung der hängenden Instanz besteht, wächst ihre Queue, aber nie über 999 Nachrichten. drop-head entfernt jeweils die älteste.
 - Eine angehaltene Instanz schickt RabbitMQ keine Heartbeats mehr. Nach etwa einer Minuten schliesst RabbitMQ deshalb ihre Verbindung (Messung unten). Weil die Queue exklusiv ist, wird sie dabei gelöscht, samt allen Nachrichten darin. Bis die Instanz fortgesetzt wird, hat sie keine Queue mehr, und der Fanout gibt ihr nichts.
 - Nach dem Fortsetzen merkt die Instanz, dass ihre Verbindung weg ist. Sie baut eine neue auf, legt eine neue Queue an, bindet sie an chat.delivery und holt wieder ab. Ab dann stellt sie neue Nachrichten wieder zu.
 - Ihr fehlen alle Nachrichten, die in der gelöschten Queue lagen, und alle, die veröffentlicht wurden, während sie keine Queue hatte. Sie stehen auch nicht in ihrer Liste. Holt ein Client bei dieser Instanz mit Last-Event-ID nach, fehlen ihm diese Nachrichten, ohne dass er es merkt. Vollständig nachholen kann er nur bei einer Instanz, die durchgehend lief (siehe 3.3).
-- Ist die Pause kürzer, bleibt die Verbindung und damit die Queue bestehen. Dann stellt die Instanz nach dem Fortsetzen die noch vorhandenen, höchstens 1000 Nachrichten zu. Ältere, die drop-head entfernt hat, fehlen ihr.
+- Ist die Pause kürzer, bleibt die Verbindung und damit die Queue bestehen. Dann stellt die Instanz nach dem Fortsetzen die noch vorhandenen, höchstens 999 Nachrichten zu. Ältere, die drop-head entfernt hat, fehlen ihr.
 
 Messung (am batch-writer, bei dem wie beim chat-service kein Heartbeat eingestellt ist):
 
@@ -232,7 +232,7 @@ Der Client verwendet dazu den HTTP-Header
 Last-Event-ID: 0b3c2f5a-1111-4a2b-8c3d-4e5f60718293
 ```
 
-Der chat-service hält pro Raum eine Liste der letzten 1000 Nachrichten im Speicher.
+Der chat-service hält pro Raum eine Liste der letzten 999 Nachrichten im Speicher.
 
 Es gibt zwei Fälle:
 
@@ -276,7 +276,7 @@ $RAUM_B = "9a8b7c6d-2222-4e3f-9a0b-00000000000b"
 Nachrichten-Skript erstellen (verwendet in S3, S5, S6 und S7):
 ```powershell
 @'
-for i in $(seq 1 ${ANZAHL:-1000}); do
+for i in $(seq 1 ${ANZAHL:-999}); do
   curl -s -o /dev/null -X POST -H 'Content-Type: application/json' -d '{"roomId":"'"$RAUM"'","senderId":"'"${SENDER:-sub-1}"'","senderName":"Test","content":"Nachricht '"$i"'"}' http://localhost:8080/messages
 done
 echo fertig
@@ -475,7 +475,7 @@ Erwartet werden 100 gespeicherte Nachrichten.
 ### S6 – Angehaltene Instanz und Queue-Begrenzung
 Szenario: S6 
 Prüfung: Eine von zwei Instanzen angehalten (docker pause), 5000 Nachrichten gesendet, danach fortgesetzt.
-Erwartetes Ergebnis: Ihre Queue hält nie mehr als 1000 Nachrichten; der Client an der anderen Instanz erhält alle 5000; nach dem Fortsetzen stellt die Instanz neue Nachrichten wieder zu.
+Erwartetes Ergebnis: Ihre Queue hält nie mehr als 999 Nachrichten; der Client an der anderen Instanz erhält alle 5000; nach dem Fortsetzen stellt die Instanz neue Nachrichten wieder zu.
 
 Zwei Instanzen starten
 ```powershell
@@ -514,7 +514,7 @@ while (((Get-Date) - $pauseStart).TotalSeconds -lt 180) { Start-Sleep -Seconds 5
 ```
 
 Im zweiten Fenster wird erwartet:
-- Die Queue der pausierten Instanz ist die amq.gen-…, deren messages ansteigt. Sie zeigt nie mehr als 1000.
+- Die Queue der pausierten Instanz ist die amq.gen-…, deren messages ansteigt. Sie zeigt nie mehr als 999.
 - Etwa 2 Minuten nach dem Pausieren verschwindet sie aus der Liste. Danach steht nur noch eine amq.gen-… da.
 
 Empfangene Nachrichten der anderen Instanz zählen

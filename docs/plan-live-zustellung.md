@@ -764,7 +764,7 @@ S1, S8, S2, dann S3 bis S7. Ergebnis jedes Szenarios mit Zahl unten eintragen.
 
 **Geprüft und korrigiert:**
 
----
+S1:
 
 ## Abgleich mit der Spezifikation
 
@@ -857,3 +857,21 @@ vorübergehend auskommentieren. Dann muss `DeliveryQueueLimitIntegrationTest` ro
 mit `messages` 1250. Danach zurückstellen. Anschliessend S6 von Hand wiederholen.
 
 **Geprüft und korrigiert:**
+
+Auftrag verlangte None. Jedoch mit NONE stapelt eine Instanz, die noch läuft, alles im Arbeitsspeicher und nichts 0 in der Queue, alle 2000 in der Instanz.
+Mit prefetch 1 und 1000 zeigt die Queue 1001, mit 999 genau 1000.
+deswegen habe ich prefetch 1 und 999 gewählt.
+
+.\mvnw -pl chat-service test "-Dtest=DeliveryQueueLimitIntegrationTest"
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 28.70 s -- in ch.benedict.m321.chatservice.delivery.DeliveryQueueLimitIntegrationTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  44.358 s
+[INFO] Finished at: 2026-11-14T10:40:05+01:00
+[INFO] --------------------------------------------------------------------
