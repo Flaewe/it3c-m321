@@ -202,7 +202,7 @@ Verhalten:
 - Die andere chat-service-Instanz verarbeitet ihre Nachrichten weiterhin.
 - Der Client an der anderen Instanz erhält alle 5000 gesendeten Nachrichten.
 - Solange die Verbindung der hängenden Instanz besteht, wächst ihre Queue, aber nie über 1000 Nachrichten. drop-head entfernt jeweils die älteste.
-- Eine angehaltene Instanz schickt RabbitMQ keine Heartbeats mehr. Nach etwa zwei Minuten schliesst RabbitMQ deshalb ihre Verbindung (Messung unten). Weil die Queue exklusiv ist, wird sie dabei gelöscht, samt allen Nachrichten darin. Bis die Instanz fortgesetzt wird, hat sie keine Queue mehr, und der Fanout gibt ihr nichts.
+- Eine angehaltene Instanz schickt RabbitMQ keine Heartbeats mehr. Nach etwa einer Minuten schliesst RabbitMQ deshalb ihre Verbindung (Messung unten). Weil die Queue exklusiv ist, wird sie dabei gelöscht, samt allen Nachrichten darin. Bis die Instanz fortgesetzt wird, hat sie keine Queue mehr, und der Fanout gibt ihr nichts.
 - Nach dem Fortsetzen merkt die Instanz, dass ihre Verbindung weg ist. Sie baut eine neue auf, legt eine neue Queue an, bindet sie an chat.delivery und holt wieder ab. Ab dann stellt sie neue Nachrichten wieder zu.
 - Ihr fehlen alle Nachrichten, die in der gelöschten Queue lagen, und alle, die veröffentlicht wurden, während sie keine Queue hatte. Sie stehen auch nicht in ihrer Liste. Holt ein Client bei dieser Instanz mit Last-Event-ID nach, fehlen ihm diese Nachrichten, ohne dass er es merkt. Vollständig nachholen kann er nur bei einer Instanz, die durchgehend lief (siehe 3.3).
 - Ist die Pause kürzer, bleibt die Verbindung und damit die Queue bestehen. Dann stellt die Instanz nach dem Fortsetzen die noch vorhandenen, höchstens 1000 Nachrichten zu. Ältere, die drop-head entfernt hat, fehlen ihr.
@@ -219,7 +219,7 @@ docker compose exec rabbitmq rabbitmqctl list_connections name state timeout
 
 Ergebnis:
 - Die Spalte timeout zeigt 60, das ist der Spring-Standard.
-- Nach dem Pausieren stand die Verbindung noch 1 Minute 48 Sekunden als running da. Bei der nächsten Abfrage, 2 Minuten 9 Sekunden nach dem Pausieren, war sie weg. RabbitMQ schliesst die Verbindung also nach etwa zwei Minuten ohne Heartbeats.
+- Nach dem Pausieren stand die Verbindung noch 1 Minute 48 Sekunden als running da. Bei der nächsten Abfrage, 2 Minuten 9 Sekunden nach dem Pausieren, war sie weg. RabbitMQ schliesst die Verbindung also nach etwa einer Minuten ohne Heartbeats.
 - 10 Sekunden nach dem Fortsetzen stand eine neue Verbindung mit einem anderen Port da (vorher 44882, nachher 59862). Spring hat sich also von selbst neu verbunden.
 - Ob die neue Queue des chat-service auch wieder an chat.delivery gebunden wird, kann der batch-writer nicht zeigen. Das prüft S6 mit der Nachricht nach-pause.
 
@@ -508,7 +508,7 @@ while ($true) { docker compose exec rabbitmq rabbitmqctl list_queues name messag
 Get-Content $env:TEMP\last.sh | docker compose exec -T --index 1 -e RAUM=$RAUM_A -e ANZAHL=5000 -e SENDER=sub-s6 chat-service sh -c "tr -d '\r' | sh"
 ```
 
-Warten, bis die Pause mindestens 3 Minuten gedauert hat. Gemessen schliesst RabbitMQ die Verbindung nach etwa 2 Minuten (siehe 3.5). So ist sicher, dass die Queue weg ist, egal wie schnell das Senden war:
+Warten, bis die Pause mindestens 3 Minuten gedauert hat. Gemessen schliesst RabbitMQ die Verbindung nach etwa einer Minuten (siehe 3.5). So ist sicher, dass die Queue weg ist, egal wie schnell das Senden war:
 ```powershell
 while (((Get-Date) - $pauseStart).TotalSeconds -lt 180) { Start-Sleep -Seconds 5 }
 ```
@@ -535,7 +535,7 @@ Zählen, wie viele der 5000 Nachrichten beim Client an Instanz 2 angekommen sind
 ```powershell
 docker compose exec --index 2 chat-service grep -c 'sub-s6' /tmp/client-s6-b.txt
 ```
-Erwartet wird 0. Die Nachrichten lagen in der gelöschten Queue oder kamen, als die Instanz keine Queue hatte (siehe 3.5).
+Erwartet wird das die Nachrichten ankommen, die schon unterwegs zur Instanz waren. Die Nachrichten lagen in der gelöschten Queue oder kamen, als die Instanz keine Queue hatte (siehe 3.5).
 
 Prüfen, ob die Instanz wieder zustellt: eine neue Nachricht mit SENDER=nach-pause senden, 5 Sekunden warten und beim Client an Instanz 2 zählen:
 ```powershell
